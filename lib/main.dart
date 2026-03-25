@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'constants/colors.dart';
 import 'constants/text_styles.dart';
 import 'screens/auth/splash_screen.dart';
+import 'screens/auth/onboarding_screen.dart';
+import 'screens/auth/login_screen.dart';
 import 'utils/routes.dart';
+import 'screens/auth/signup_screen.dart';
+import 'screens/auth/email_verification_screen.dart';
+import 'screens/profile/profile_screen.dart';
+import 'screens/profile/settings_screen.dart';
 
 void main() {
   runApp(const CampusCarpoolApp());
@@ -26,40 +32,16 @@ class CampusCarpoolApp extends StatelessWidget {
           centerTitle: true,
           titleTextStyle: AppTextStyles.heading3,
         ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.primary, width: 1),
-          ),
-          labelStyle: AppTextStyles.inputLabel,
-          hintStyle: AppTextStyles.inputHint,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            textStyle: AppTextStyles.button,
-          ),
-        ),
       ),
       initialRoute: AppRoutes.splash,
       routes: {
         AppRoutes.splash: (context) => const SplashScreen(),
-        // We'll add more routes as we create them
+        AppRoutes.onboarding: (context) => const OnboardingScreen(),
+        AppRoutes.login: (context) => const LoginScreen(),
+        AppRoutes.signup: (context) => const SignupScreen(),
+        AppRoutes.emailVerification: (context) => const EmailVerificationScreen(),
+        AppRoutes.profile: (context) => const ProfileScreen(),
+        AppRoutes.settings: (context) => const SettingsScreen(),
       },
     );
   }

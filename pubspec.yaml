@@ -35,6 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+
   # UI Utilities - For better looking UI
   google_fonts: ^6.1.0
   font_awesome_flutter: ^10.7.0
@@ -81,6 +82,17 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/icons/car.png
+    - assets/icons/car2.png
+    - assets/icons/2.png
+    - assets/icons/3.png
+    - assets/icons/4.png
+    - assets/icons/car.png
+    - assets/icons/logo.png
+
+  uses-material-design: true
+
 
   # The following line ensures that the Material Icons font is
   # included with 0s/

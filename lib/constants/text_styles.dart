@@ -50,4 +50,9 @@ class AppTextStyles {
     fontSize: 16,
     color: AppColors.textHint,
   );
+  static const TextStyle caption = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textHint,
+  );
 }
