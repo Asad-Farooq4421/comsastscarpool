@@ -24,6 +24,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
+  String _passwordStrength = '';
 
   @override
   void dispose() {
@@ -32,6 +33,44 @@ class _SignupScreenState extends State<SignupScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+  String? _validatePassword(String value) {
+    if (value.isEmpty) {
+      return 'Please enter a password';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least one number';
+    }
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return 'Password must contain at least one special character';
+    }
+    return null;
+  }
+  void _checkPasswordStrength(String password) {
+    setState(() {
+      if (password.isEmpty) {
+        _passwordStrength = '';
+      } else if (password.length < 8) {
+        _passwordStrength = 'Weak';
+      } else if (RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$')
+          .hasMatch(password)) {
+        _passwordStrength = 'Strong';
+      } else if (RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9]).{8,}$')
+          .hasMatch(password)) {
+        _passwordStrength = 'Medium';
+      } else {
+        _passwordStrength = 'Weak';
+      }
+    });
   }
 
   void _handleSignup() {
@@ -185,7 +224,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       obscureText: !_isPasswordVisible,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        hintText: 'Create a password',
+                        hintText: 'Create a strong password',
                         prefixIcon: const Icon(Icons.lock),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -204,14 +243,47 @@ class _SignupScreenState extends State<SignupScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter a password';
                         }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
-                        }
-                        return null;
+                        return _validatePassword(value);
+                      },
+                      onChanged: (value) {
+                        _checkPasswordStrength(value);
                       },
                     ),
-
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 4),
+                    if (_passwordStrength.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Password Strength: ',
+                              style: AppTextStyles.caption,
+                            ),
+                            Text(
+                              _passwordStrength,
+                              style: AppTextStyles.caption.copyWith(
+                                color: _passwordStrength == 'Strong'
+                                    ? Colors.green
+                                    : _passwordStrength == 'Medium'
+                                    ? Colors.orange
+                                    : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, left: 12),
+                      child: Text(
+                        'Requirements: 8+ chars, uppercase, lowercase, number, special character',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textHint,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
                     // Confirm Password field
                     TextFormField(
