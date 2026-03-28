@@ -17,7 +17,6 @@ class AppRoutes {
 
   // Passenger routes
   static const String searchRides = '/search-rides';
-  static const String rideResults = '/ride-results';
   static const String rideDetails = '/ride-details';
   static const String myRequests = '/my-requests';
   static const String upcomingRides = '/upcoming-rides';

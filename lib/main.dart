@@ -1,3 +1,6 @@
+import 'package:comsastscarpool/screens/driver/driver_home_screen.dart';
+
+import 'screens/passenger/search_rides_screen.dart';
 import 'package:flutter/material.dart';
 import 'constants/colors.dart';
 import 'constants/text_styles.dart';
@@ -42,6 +45,9 @@ class CampusCarpoolApp extends StatelessWidget {
         AppRoutes.emailVerification: (context) => const EmailVerificationScreen(),
         AppRoutes.profile: (context) => const ProfileScreen(),
         AppRoutes.settings: (context) => const SettingsScreen(),
+
+        AppRoutes.searchRides: (context) => const SearchScreen(),
+        AppRoutes.driverHome: (context) => const DriverHomeScreen(),
       },
     );
   }
