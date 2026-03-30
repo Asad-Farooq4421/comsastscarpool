@@ -43,6 +43,44 @@ class Ride {
 
   // Helper to get price per seat as string
   String get priceString => 'Rs. $price';
+
+  Ride copyWith({
+    String? rideId,
+    String? driverId,
+    String? driverName,
+    String? driverPhoto,
+    double? driverRating,
+    String? from,
+    String? destination,
+    String? date,
+    String? time,
+    int? totalSeats,
+    int? availableSeats,
+    int? price,
+    String? status,
+    String? notes,
+    int? pendingRequests,
+    List<PassengerInfo>? passengers,
+  }) {
+    return Ride(
+      rideId: rideId ?? this.rideId,
+      driverId: driverId ?? this.driverId,
+      driverName: driverName ?? this.driverName,
+      driverPhoto: driverPhoto ?? this.driverPhoto,
+      driverRating: driverRating ?? this.driverRating,
+      from: from ?? this.from,
+      destination: destination ?? this.destination,
+      date: date ?? this.date,
+      time: time ?? this.time,
+      totalSeats: totalSeats ?? this.totalSeats,
+      availableSeats: availableSeats ?? this.availableSeats,
+      price: price ?? this.price,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+      pendingRequests: pendingRequests ?? this.pendingRequests,
+      passengers: passengers ?? this.passengers,
+    );
+  }
 }
 
 class PassengerInfo {
@@ -55,4 +93,16 @@ class PassengerInfo {
     required this.name,
     required this.status,
   });
+
+  PassengerInfo copyWith({
+    String? userId,
+    String? name,
+    String? status,
+  }) {
+    return PassengerInfo(
+      userId: userId ?? this.userId,
+      name: name ?? this.name,
+      status: status ?? this.status,
+    );
+  }
 }

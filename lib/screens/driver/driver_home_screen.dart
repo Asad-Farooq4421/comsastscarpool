@@ -128,7 +128,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       ),
                       ElevatedButton.icon(
                         onPressed: () {
-                          Navigator.pushNamed(context, AppRoutes.postRide);
+                          Navigator.pushNamed(context, AppRoutes.postRide).then((value) {
+                            if (value == true) setState(() {});
+                          });
                         },
                         icon: const Icon(Icons.add, size: 18),
                         label: const Text('Post Ride'),
@@ -152,14 +154,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       return DriverRideCard(
                         ride: ride,
                         onViewRequests: () {
-                          Navigator.pushNamed(context, AppRoutes.rideRequests, arguments: ride);
+                          Navigator.pushNamed(context, AppRoutes.rideRequests, arguments: ride).then((value) {
+                             setState(() {});
+                          });
                         },
                         onEdit: () {
-                          Navigator.pushNamed(context, AppRoutes.editRide, arguments: ride);
+                          Navigator.pushNamed(context, AppRoutes.editRide, arguments: ride).then((value) {
+                            if (value == true) setState(() {});
+                          });
                         },
                         onDelete: () {
                           // Show delete confirmation
-                          _showDeleteConfirmation(context);
+                          _showDeleteConfirmation(context, ride.rideId);
                         },
                       );
                     },
@@ -206,7 +212,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context) {
+  void _showDeleteConfirmation(BuildContext context, String rideId) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -215,7 +221,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.pop(context), 
+            onPressed: () {
+              setState(() {
+                dummyRides.removeWhere((r) => r.rideId == rideId);
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Ride deleted successfully'), backgroundColor: Colors.red),
+              );
+            },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),
