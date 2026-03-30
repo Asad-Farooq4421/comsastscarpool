@@ -7,6 +7,7 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String settings = '/settings';
 
+
   // Driver routes
   static const String driverHome = '/driver-home';
   static const String postRide = '/post-ride';
@@ -14,6 +15,7 @@ class AppRoutes {
   static const String editRide = '/edit-ride';
   static const String rideRequests = '/ride-requests';
   static const String safetyCenter = '/safety-center';
+  static const String emergencyContacts = '/emergency-contacts';
 
   // Passenger routes
   static const String searchRides = '/search-rides';

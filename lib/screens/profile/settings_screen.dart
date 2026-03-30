@@ -4,7 +4,7 @@ import '../../constants/text_styles.dart';
 import '../../utils/routes.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -65,12 +65,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   },
                 ),
+                _buildSwitchTile(
+                  icon: Icons.dark_mode,
+                  title: 'Dark Mode',
+                  subtitle: 'Use a dark theme for the app interface',
+                  value: _darkModeEnabled,
+                  onChanged: (value) {
+                    setState(() {
+                      _darkModeEnabled = value;
+                    });
+                  },
+                ),
               ],
             ),
 
             const SizedBox(height: 16),
 
-            // Privacy Section
+            // Privacy & Safety Section
             _buildSection(
               title: 'Privacy & Safety',
               children: [
@@ -85,12 +96,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     });
                   },
                 ),
+
+                _buildNavigationTile(
+                  icon: Icons.security,
+                  title: 'Safety Center',
+                  subtitle: 'SOS, safety tips, and emergency resources',
+                  onTap: () {
+                    Navigator.pushNamed(context, AppRoutes.safetyCenter);
+                  },
+                ),
+
+                _buildNavigationTile(
+                  icon: Icons.emergency,
+                  title: 'Emergency Contacts',
+                  subtitle: 'Manage your emergency contacts for SOS',
+                  onTap: () {
+                    Navigator.pushNamed(context, AppRoutes.emergencyContacts);
+                  },
+                ),
+
                 _buildNavigationTile(
                   icon: Icons.block,
                   title: 'Blocked Users',
                   subtitle: 'View and manage blocked users',
                   onTap: () {
-                    // Navigate to blocked users screen (future scope)
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Blocked users feature coming soon'),
@@ -100,11 +129,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 _buildNavigationTile(
-                  icon: Icons.security,
+                  icon: Icons.privacy_tip,
                   title: 'Privacy Policy',
                   subtitle: 'Read our privacy policy',
                   onTap: () {
-                    // Show privacy policy dialog
                     _showInfoDialog('Privacy Policy',
                         'Your privacy is important to us. We collect only your university email and ride information to facilitate ride-sharing.\n\n'
                             'Your data is never shared with third parties without your consent.\n\n'
@@ -163,7 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             'Send your feedback to:\n'
                             'feedback@campuscarpool.com\n\n'
                             'Or visit our website:\n'
-                            'www.campuscarpool.com/feedback'
+                            'www.campus-carpool.com/feedback'
                     );
                   },
                 ),
@@ -249,7 +277,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       subtitle: Text(subtitle, style: AppTextStyles.caption),
       value: value,
       onChanged: onChanged,
-      activeColor: AppColors.primary,
+      activeTrackColor: AppColors.primary.withOpacity(0.5),
+      activeThumbColor: AppColors.primary,
     );
   }
 

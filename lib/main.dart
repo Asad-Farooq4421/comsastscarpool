@@ -1,5 +1,5 @@
 import 'package:comsastscarpool/screens/driver/driver_home_screen.dart';
-
+import 'package:comsastscarpool/screens/driver/post_ride_screen.dart';
 import 'screens/passenger/search_rides_screen.dart';
 import 'package:flutter/material.dart';
 import 'constants/colors.dart';
@@ -12,6 +12,8 @@ import 'screens/auth/signup_screen.dart';
 import 'screens/auth/email_verification_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
+import 'screens/profile/safety_center_screen.dart';
+import 'screens/profile/emergency_contacts_screen.dart';
 
 void main() {
   runApp(const CampusCarpoolApp());
@@ -36,7 +38,7 @@ class CampusCarpoolApp extends StatelessWidget {
           titleTextStyle: AppTextStyles.heading3,
         ),
       ),
-      initialRoute: AppRoutes.splash,
+      initialRoute: AppRoutes.settings,
       routes: {
         AppRoutes.splash: (context) => const SplashScreen(),
         AppRoutes.onboarding: (context) => const OnboardingScreen(),
@@ -48,6 +50,10 @@ class CampusCarpoolApp extends StatelessWidget {
 
         AppRoutes.searchRides: (context) => const SearchScreen(),
         AppRoutes.driverHome: (context) => const DriverHomeScreen(),
+        AppRoutes.postRide: (context) => const PostRideScreen(),
+
+        AppRoutes.safetyCenter: (context) => const SafetyCenterScreen(),
+        AppRoutes.emergencyContacts: (context) => const EmergencyContactsScreen(),
       },
     );
   }

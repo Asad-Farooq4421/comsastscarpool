@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/user_model.dart';
 import '../../widgets/role_toggle.dart';
+import '../../utils/routes.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -48,6 +49,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.pushNamed(context, AppRoutes.postRide);
+        },
+        label: const Text('Post a Ride'),
+        icon: const Icon(Icons.add),
       ),
     );
   }
