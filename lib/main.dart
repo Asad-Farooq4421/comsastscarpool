@@ -38,7 +38,7 @@ class CampusCarpoolApp extends StatelessWidget {
           titleTextStyle: AppTextStyles.heading3,
         ),
       ),
-      initialRoute: AppRoutes.settings,
+      initialRoute: AppRoutes.splash,
       routes: {
         AppRoutes.splash: (context) => const SplashScreen(),
         AppRoutes.onboarding: (context) => const OnboardingScreen(),
