@@ -171,7 +171,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _locationTile("From", ride.origin),
+                _locationTile("From", ride.from),
                 _locationTile("To", ride.destination),
               ],
             ),
@@ -249,7 +249,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                       style: AppTextStyles.bodyLarge),
                   const SizedBox(height: 4),
                   Text(
-                    "${ride.seatsAvailable ?? 0} seats available",
+                    "${ride.availableSeats ?? 0} seats available",
                     style: AppTextStyles.caption,
                   ),
                 ],
@@ -324,7 +324,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
   //  REQUEST
   void _requestRide(BuildContext context, Ride ride) {
-    if ((ride.seatsAvailable ?? 0) <= 0) {
+    if ((ride.availableSeats ?? 0) <= 0) {
       _showSnack("No seats available");
       return;
     }
@@ -336,7 +336,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     );
 
     rideRequests.add(request);
-    ride.seatsAvailable = (ride.seatsAvailable ?? 1) - 1;
+    ride.availableSeats = (ride.availableSeats ?? 1) - 1;
 
     setState(() {
       myRequest = request;
@@ -353,8 +353,8 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
           req.passengerName == currentUser,
     );
 
-    widget.ride.seatsAvailable =
-        (widget.ride.seatsAvailable ?? 0) + 1;
+    widget.ride.availableSeats =
+        (widget.ride.availableSeats ?? 0) + 1;
 
     setState(() {
       myRequest = null;

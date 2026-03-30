@@ -39,14 +39,14 @@ class _SearchScreenState extends State<SearchScreen> {
 
       filteredRides = dummyRides.where((ride) {
         final matchFrom =
-            from.isEmpty || ride.origin.toLowerCase().contains(from);
+            from.isEmpty || ride.from.toLowerCase().contains(from);
 
         final matchTo =
             to.isEmpty || ride.destination.toLowerCase().contains(to);
 
         final matchDate = date.isEmpty || ride.date == date;
 
-        final hasSeats = (ride.seatsAvailable) > 0;
+        final hasSeats = (ride.availableSeats) > 0;
 
         return matchFrom && matchTo && matchDate && hasSeats;
       }).toList();

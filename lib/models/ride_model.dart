@@ -9,7 +9,7 @@ class Ride {
   final String date;
   final String time;
   final int totalSeats;
-  final int availableSeats;
+  int availableSeats;
   final int price;
   final String status;
   final String notes;

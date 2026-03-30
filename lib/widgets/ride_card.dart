@@ -50,7 +50,7 @@ class RideCard extends StatelessWidget {
                   ),
 
                   Text(
-                    "Seats Available: ${ride.seatsAvailable}",
+                    "Seats Available: ${ride.availableSeats}",
                     style: AppTextStyles.caption,
                   ),
                 ],

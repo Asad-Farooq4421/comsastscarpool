@@ -9,6 +9,7 @@ class AppBottomNav extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
+
   });
 
   @override
