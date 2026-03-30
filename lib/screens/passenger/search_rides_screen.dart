@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../models/user_model.dart';
+
 import '../../models/ride_model.dart';
 import '../../data/dummy_rides.dart';
 import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
-import '../../utils/routes.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../driver/driver_home_screen.dart';
+import '../profile/profile_screen.dart';
+import 'ride_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -18,29 +21,34 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   UserRole selectedRole = UserRole.passenger;
 
-  final TextEditingController destinationController = TextEditingController();
+  final TextEditingController fromController = TextEditingController();
+  final TextEditingController toController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
 
   List<Ride> filteredRides = [];
   bool hasSearched = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Pre-load some rides so screen isn't empty initially
-    filteredRides = List.from(dummyRides);
-  }
-
+  //SEARCH FUNCTION
   void searchRides() {
-    final destination = destinationController.text.toLowerCase().trim();
+    final from = fromController.text.toLowerCase().trim();
+    final to = toController.text.toLowerCase().trim();
     final date = dateController.text.trim();
 
     setState(() {
       hasSearched = true;
+
       filteredRides = dummyRides.where((ride) {
-        final matchDestination = ride.destination.toLowerCase().contains(destination);
+        final matchFrom =
+            from.isEmpty || ride.origin.toLowerCase().contains(from);
+
+        final matchTo =
+            to.isEmpty || ride.destination.toLowerCase().contains(to);
+
         final matchDate = date.isEmpty || ride.date == date;
-        return matchDestination && matchDate;
+
+        final hasSeats = (ride.seatsAvailable) > 0;
+
+        return matchFrom && matchTo && matchDate && hasSeats;
       }).toList();
     });
   }
@@ -48,216 +56,246 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SingleChildScrollView(
+      backgroundColor: AppColors.background,
+
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 0, // Home tab
+        onTap: (index) {
+          switch (index) {
+            case 0:
+            // Already on Home, do nothing
+              break;
+            case 1:
+            // Navigate to Rides screen if you have a separate RidesScreen
+            // Navigator.push(context, MaterialPageRoute(builder: (_) => RidesScreen()));
+              break;
+            case 2:
+            // Navigate to Chats
+              break;
+            case 3:
+            // Navigate to Profile
+              Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen()));
+              break;
+          }
+        },
+      ),
+      body: SafeArea(
         child: Column(
           children: [
-            // 🏷️ Header with Gradient (Consistent with Driver)
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Find a Ride',
-                            style: AppTextStyles.heading2.copyWith(color: Colors.white),
-                          ),
-                          Text(
-                            'Where are we heading?',
-                            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
-                          ),
-                        ],
-                      ),
-                      Stack(
-                        children: [
-                          const Icon(Icons.notifications_none, color: Colors.white, size: 32),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Text(
-                                '3',
-                                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // 🔘 Role Toggle
-                  Center(
-                    child: RoleToggle(
-                      selectedRole: selectedRole,
-                      onChanged: (role) {
-                        if (role == UserRole.driver) {
-                          Navigator.pushReplacementNamed(context, AppRoutes.driverHome);
-                        }
-                      },
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 32),
-                  
-                  // 📊 Passenger Stats Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildStatItem('8', 'Rides Taken'),
-                      _buildStatItem('4.9', 'Rating'),
-                      _buildStatItem('Rs. 1200', 'Saved'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // 🔍 Search Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Search Rides', style: AppTextStyles.heading3),
-                  const SizedBox(height: 16),
-                  _buildSearchField(
-                    controller: destinationController,
-                    hint: 'Where to?',
-                    icon: Icons.location_on_outlined,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSearchField(
-                    controller: dateController,
-                    hint: 'When? (Optional)',
-                    icon: Icons.calendar_today_outlined,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: searchRides,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Search Rides', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // 🚗 Ride List Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hasSearched ? 'Search Results' : 'Recommended Rides',
-                    style: AppTextStyles.heading3,
-                  ),
-                  const SizedBox(height: 16),
-                  filteredRides.isEmpty
-                      ? const Center(child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 40),
-                          child: Text('No rides found for your criteria.'),
-                        ))
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.zero,
-                          itemCount: filteredRides.length,
-                          itemBuilder: (context, index) {
-                            return RideCard(filteredRides[index]);
-                          },
-                        ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+            _buildHeader(),
+            _buildSearchForm(),
+            _buildRideList(),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Rides'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+    );
+  }
+
+  // HEADER
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title + Notification
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Find a Ride",
+                style: AppTextStyles.heading2.copyWith(color: Colors.white),
+              ),
+              Stack(
+                children: const [
+                  Icon(Icons.notifications, color: Colors.white),
+                  Positioned(
+                    right: 0,
+                    child: CircleAvatar(
+                      radius: 6,
+                      backgroundColor: Colors.red,
+                    ),
+                  )
+                ],
+              )
+            ],
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            "Search by route and date",
+            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Role Toggle
+          RoleToggle(
+            selectedRole: selectedRole,
+            onChanged: (role) {
+              if (role == UserRole.driver) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DriverHomeScreen(),
+                  ),
+                );
+              } else {
+                setState(() {
+                  selectedRole = UserRole.passenger;
+                });
+              }
+            },
+          ),
         ],
-        onTap: (index) {
-          if (index == 2) Navigator.pushNamed(context, AppRoutes.chatList);
-          if (index == 3) Navigator.pushNamed(context, AppRoutes.profile);
-        },
       ),
     );
   }
 
-  Widget _buildStatItem(String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
-        ),
-      ],
+  // SEARCH FORM
+  Widget _buildSearchForm() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _inputField(
+            controller: fromController,
+            hint: "From",
+            icon: Icons.circle,
+          ),
+          const SizedBox(height: 10),
+
+          _inputField(
+            controller: toController,
+            hint: "To",
+            icon: Icons.location_on,
+          ),
+          const SizedBox(height: 10),
+
+          // DATE
+          GestureDetector(
+            onTap: () async {
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime(2100),
+              );
+
+              if (pickedDate != null) {
+                setState(() {
+                  dateController.text =
+                  pickedDate.toIso8601String().split('T')[0];
+                });
+              }
+            },
+            child: AbsorbPointer(
+              child: _inputField(
+                controller: dateController,
+                hint: "Select Date",
+                icon: Icons.calendar_today,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: searchRides,
+            icon: const Icon(Icons.search, color: Colors.white),
+            label: Text("Search Rides", style: AppTextStyles.button),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildSearchField({
+  // INPUT FIELD
+  Widget _inputField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
+    return TextField(
+      controller: controller,
+      style: AppTextStyles.bodyLarge,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: AppColors.textSecondary),
+        hintText: hint,
+        hintStyle: AppTextStyles.inputHint,
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 15),
+    );
+  }
+
+  // RIDE LIST
+  Widget _buildRideList() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (hasSearched)
+              Text("Available Rides", style: AppTextStyles.heading3),
+
+            const SizedBox(height: 10),
+
+            Expanded(
+              child: !hasSearched
+                  ? const Center(
+                child: Text("Search for rides to see results"),
+              )
+                  : filteredRides.isEmpty
+                  ? const Center(
+                child: Text("No rides found"),
+              )
+                  : ListView.builder(
+                itemCount: filteredRides.length,
+                itemBuilder: (context, index) {
+                  final ride = filteredRides[index];
+
+                  return RideCard(
+                    ride: ride,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              RideDetailsScreen(ride: ride),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

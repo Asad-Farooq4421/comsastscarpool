@@ -1,4 +1,0 @@
-enum UserRole {
-  passenger,
-  driver,
-}
