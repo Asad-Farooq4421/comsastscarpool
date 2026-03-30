@@ -1,11 +1,11 @@
 class MessageModel {
   final String id;
   final String chatId;
-  final String senderId; // 'me' ya actual user id
+  final String senderId;
   final String text;
   final String timestamp;
-  final bool isRead;
-  final bool isMe; // true if sent by current user
+  bool isRead;  // Changed to non-final so we can update
+  final bool isMe;
 
   MessageModel({
     required this.id,
@@ -16,4 +16,17 @@ class MessageModel {
     required this.isRead,
     required this.isMe,
   });
+
+  // Copy with method to update read status
+  MessageModel copyWith({bool? isRead}) {
+    return MessageModel(
+      id: id,
+      chatId: chatId,
+      senderId: senderId,
+      text: text,
+      timestamp: timestamp,
+      isRead: isRead ?? this.isRead,
+      isMe: isMe,
+    );
+  }
 }
