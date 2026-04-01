@@ -105,6 +105,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 2, // Chat tab
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), label: 'Rides'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+        ],
+        onTap: (index) {
+          if (index == 0) Navigator.pushReplacementNamed(context, AppRoutes.searchRides);
+          if (index == 1) {
+            // Navigator.pushReplacementNamed(context, AppRoutes.myRequests); // Placeholder
+          }
+          if (index == 3) Navigator.pushReplacementNamed(context, AppRoutes.profile);
+        },
+      ),
     );
   }
 
@@ -164,7 +183,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   onBackgroundImageError: (_, ___) {}, // Fixed multiple underscores
                   child: chat.userPhoto.isEmpty
                       ? Text(
-                    chat.userName.isNotEmpty ? chat.userName[0].toUpperCase() : '?',
+                    chat.userName[0].toUpperCase(),
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
