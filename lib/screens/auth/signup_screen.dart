@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../utils/routes.dart';
-import '../../widgets/custom_button.dart';
 import '../../data/dummy_users.dart';
-
-
+import '../../widgets/custom_button.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({Key? key}) : super(key: key);
@@ -34,6 +32,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
+
   String? _validatePassword(String value) {
     if (value.isEmpty) {
       return 'Please enter a password';
@@ -55,6 +54,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
     return null;
   }
+
   void _checkPasswordStrength(String password) {
     setState(() {
       if (password.isEmpty) {
@@ -79,15 +79,12 @@ class _SignupScreenState extends State<SignupScreen> {
         _isLoading = true;
       });
 
-      // Simulate API call delay
       Future.delayed(const Duration(seconds: 1), () {
         setState(() {
           _isLoading = false;
         });
 
-        // Check if email already exists using helper function
         if (userExists(_emailController.text.trim())) {
-          // Email already registered
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Email already registered. Please login.'),
@@ -96,7 +93,6 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
           );
         } else {
-          // Create new user
           final newUser = {
             'email': _emailController.text.trim(),
             'password': _passwordController.text,
@@ -104,27 +100,21 @@ class _SignupScreenState extends State<SignupScreen> {
             'university': 'COMSATS Islamabad',
           };
 
-          // Add to dummy users list
           addUser(newUser);
 
-          // Show success message with user count
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                'Account created successfully! Total users: ${dummyUsers.length}',
-              ),
+              content: Text('Account created successfully!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
           );
 
-          // Clear form
           _nameController.clear();
           _emailController.clear();
           _passwordController.clear();
           _confirmPasswordController.clear();
 
-          // Navigate to email verification screen
           Future.delayed(const Duration(seconds: 1), () {
             Navigator.pushReplacementNamed(context, AppRoutes.emailVerification);
           });
@@ -132,7 +122,6 @@ class _SignupScreenState extends State<SignupScreen> {
       });
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -143,7 +132,6 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
               IconButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -152,10 +140,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,
               ),
-
               const SizedBox(height: 20),
-
-              // Title
               Text(
                 'Create Account',
                 style: AppTextStyles.heading1,
@@ -167,15 +152,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   color: AppColors.textSecondary,
                 ),
               ),
-
               const SizedBox(height: 40),
-
-              // Form
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    // Full Name field
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
@@ -193,10 +174,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Email field (University email only)
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -215,10 +193,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Password field
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
@@ -284,8 +259,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
-                    // Confirm Password field
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: !_isConfirmPasswordVisible,
@@ -319,19 +292,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // Sign Up Button
               CustomButton(
                 text: 'Sign Up',
                 onPressed: _handleSignup,
                 isLoading: _isLoading,
               ),
-
               const SizedBox(height: 20),
-
-              // Login link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -353,10 +320,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
-              // Info text
               Text(
                 'Use your university email (@isbstudent.comsats.edu.pk) to sign up',
                 style: AppTextStyles.caption.copyWith(

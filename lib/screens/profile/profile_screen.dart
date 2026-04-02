@@ -13,12 +13,10 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // For demo, using the first user as logged in user
-  Map<String, dynamic> _user = {};
+  Map<String, dynamic> _user = {}; // Initialize as empty map, not nullable
   bool _isEditing = false;
   bool _isDriver = false;
 
-  // Controllers for editing
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _bioController = TextEditingController();
@@ -31,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Load user data (using first user from dummy list as logged in)
+    // Load user data (using last user as logged in)
     if (dummyUsers.isNotEmpty) {
       _user = Map.from(dummyUsers.last);
       _nameController.text = _user['name'] ?? '';
@@ -42,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _vehicleColorController.text = _user['vehicleColor'] ?? '';
       _vehiclePlateController.text = _user['vehiclePlate'] ?? '';
       _vehicleSeatsController.text = _user['vehicleSeats'] ?? '';
-
       _isDriver = _user['isDriver'] ?? false;
     }
   }
@@ -59,6 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _vehicleSeatsController.dispose();
     super.dispose();
   }
+
   Widget _buildModeSwitch() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -70,7 +68,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Passenger Mode
           GestureDetector(
             onTap: () {
               setState(() {
@@ -102,7 +99,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-          // Driver Mode
           GestureDetector(
             onTap: () {
               setState(() {
@@ -152,7 +148,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _user['bio'] = _bioController.text;
       _user['isDriver'] = _isDriver;
 
-      // Save driver details
       if (_isDriver) {
         _user['vehicleType'] = _vehicleTypeController.text;
         _user['vehicleModel'] = _vehicleModelController.text;
@@ -198,6 +193,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if user is empty (loading state)
+    if (_user.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -214,13 +216,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Profile Header (same as before)
             Container(
               color: Colors.white,
               child: Column(
                 children: [
                   const SizedBox(height: 30),
-                  // Profile Photo (same)
                   Stack(
                     children: [
                       CircleAvatar(
@@ -262,7 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  // Name
                   if (!_isEditing)
                     Text(
                       _user['name'] ?? 'Student Name',
@@ -280,7 +279,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  // Verification Badge
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
@@ -303,14 +301,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  // Email
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.email, size: 16, color: AppColors.textSecondary),
                       const SizedBox(width: 8),
                       Text(
-                        _user['email'] ?? 'student@isbstudent.comsats.edu.pk',
+                        _user['email'] ?? '',
                         style: AppTextStyles.bodyMedium.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -318,27 +315,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  // MODE SWITCH - ADD THIS
                   _buildModeSwitch(),
                   const SizedBox(height: 30),
                 ],
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Stats Section - Show based on mode
             if (!_isDriver) _buildPassengerStats(),
             if (_isDriver) _buildDriverStats(),
-
             const SizedBox(height: 16),
-
-            // Vehicle Details - Only for Driver mode
             if (_isDriver) _buildVehicleDetails(),
-
             const SizedBox(height: 16),
-
-            // Contact Info Section (same as before)
             Container(
               color: Colors.white,
               child: Padding(
@@ -405,10 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // Action Buttons (same as before)
             Container(
               color: Colors.white,
               child: Padding(
@@ -452,13 +436,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 20),
           ],
         ),
       ),
     );
   }
+
   Widget _buildDriverStats() {
     return Container(
       color: Colors.white,
@@ -486,6 +470,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
   Widget _buildPassengerStats() {
     return Container(
       color: Colors.white,
@@ -513,6 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
   Widget _buildVehicleDetails() {
     return Container(
       color: Colors.white,
@@ -613,6 +599,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
   Widget _buildStatCard(String title, String value, IconData icon) {
     return Expanded(
       child: Container(

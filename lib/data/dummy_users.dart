@@ -84,8 +84,6 @@ void addUser(Map<String, dynamic> newUser) {
   };
 
   dummyUsers.add(completeUser);
-  print('User added: ${newUser['email']}');
-  print('Total users: ${dummyUsers.length}');
 }
 
 bool userExists(String email) {

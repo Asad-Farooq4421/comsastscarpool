@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../utils/routes.dart';
-import '../../widgets/custom_button.dart';
 import '../../data/dummy_users.dart';
+import '../../widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -32,35 +32,33 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = true;
       });
 
-      // Simulate API call delay
       Future.delayed(const Duration(seconds: 1), () {
         setState(() {
           _isLoading = false;
         });
 
-        // Check credentials against dummy users
         final user = dummyUsers.firstWhere(
               (user) => user['email'] == _emailController.text.trim(),
           orElse: () => {},
         );
 
         if (user.isNotEmpty && user['password'] == _passwordController.text) {
-          // Login successful
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Login Successful! Welcome to Campus Carpool!'),
+              content: Text('Login Successful!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
             ),
           );
-          // Clear form
+
           _emailController.clear();
           _passwordController.clear();
+
+          Navigator.pushReplacementNamed(context, AppRoutes.profile);
         } else {
-          // Login failed
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Invalid email or password. Please try again.'),
+              content: Text('Invalid email or password.'),
               backgroundColor: Colors.red,
               duration: Duration(seconds: 2),
             ),
@@ -80,7 +78,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Back button
               IconButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -89,10 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 padding: EdgeInsets.zero,
                 alignment: Alignment.centerLeft,
               ),
-
               const SizedBox(height: 40),
-
-              // Title
               Text(
                 'Welcome Back!',
                 style: AppTextStyles.heading1,
@@ -104,15 +98,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppColors.textSecondary,
                 ),
               ),
-
               const SizedBox(height: 40),
-
-              // Form
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    // Email field
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -131,10 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 20),
-
-                    // Password field
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
@@ -168,16 +155,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 16),
-
-              // Forgot Password
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    // Navigate to forgot password
-                  },
+                  onPressed: () {},
                   child: Text(
                     'Forgot Password?',
                     style: AppTextStyles.bodyMedium.copyWith(
@@ -186,26 +168,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // Login Button
               CustomButton(
                 text: 'Login',
                 onPressed: _handleLogin,
                 isLoading: _isLoading,
               ),
-
               const SizedBox(height: 20),
-              const SizedBox(height: 16),
-
               Text(
                 'Demo: student@isbstudent.comsats.edu.pk',
                 style: AppTextStyles.caption.copyWith(color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
-
-              // Sign up link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
