@@ -84,7 +84,9 @@ class _SignupScreenState extends State<SignupScreen> {
           _isLoading = false;
         });
 
-        if (userExists(_emailController.text.trim())) {
+        final email = _emailController.text.trim();
+
+        if (userExists(email)) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Email already registered. Please login.'),
@@ -94,16 +96,19 @@ class _SignupScreenState extends State<SignupScreen> {
           );
         } else {
           final newUser = {
-            'email': _emailController.text.trim(),
+            'email': email,
             'password': _passwordController.text,
             'name': _nameController.text.trim(),
             'university': 'COMSATS Islamabad',
           };
 
-          addUser(newUser);
+          // ==================== USE THIS INSTEAD OF addUser() ====================
+          // Add user and set as current user
+          addUserAndSetCurrent(newUser);
+          // ======================================================================
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text('Account created successfully!'),
               backgroundColor: Colors.green,
               duration: Duration(seconds: 2),
@@ -116,7 +121,7 @@ class _SignupScreenState extends State<SignupScreen> {
           _confirmPasswordController.clear();
 
           Future.delayed(const Duration(seconds: 1), () {
-            Navigator.pushReplacementNamed(context, AppRoutes.emailVerification);
+            Navigator.pushReplacementNamed(context, AppRoutes.profile);
           });
         }
       });

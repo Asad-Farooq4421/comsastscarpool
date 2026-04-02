@@ -37,12 +37,22 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
 
+        final email = _emailController.text.trim();
         final user = dummyUsers.firstWhere(
-              (user) => user['email'] == _emailController.text.trim(),
+              (user) => user['email'] == email,
           orElse: () => {},
         );
 
         if (user.isNotEmpty && user['password'] == _passwordController.text) {
+          // ==================== ADD THIS BLOCK ====================
+          // Find the index of the logged-in user
+          final userIndex = dummyUsers.indexWhere((u) => u['email'] == email);
+
+          // Set as current user
+          setCurrentUserIndex(userIndex);
+          print('✅ Logged in as: ${user['name']} (Index: $userIndex)');
+          // ========================================================
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Login Successful!'),

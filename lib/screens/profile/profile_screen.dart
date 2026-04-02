@@ -29,9 +29,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Load user data (using last user as logged in)
-    if (dummyUsers.isNotEmpty) {
-      _user = Map.from(dummyUsers.last);
+    _loadCurrentUser();
+  }
+
+  void _loadCurrentUser() {
+    // Get the currently logged-in user (by index)
+    final currentUser = getCurrentUser();
+
+    if (currentUser != null) {
+      _user = Map.from(currentUser);
       _nameController.text = _user['name'] ?? '';
       _phoneController.text = _user['phone'] ?? '';
       _bioController.text = _user['bio'] ?? '';
@@ -41,6 +47,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _vehiclePlateController.text = _user['vehiclePlate'] ?? '';
       _vehicleSeatsController.text = _user['vehicleSeats'] ?? '';
       _isDriver = _user['isDriver'] ?? false;
+      setState(() {});
+    } else {
+      // No user logged in - redirect to login
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      });
     }
   }
 
@@ -159,6 +171,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isEditing = false;
     });
 
+    // Update the current user's data in the dummyUsers list
+    updateCurrentUser(_user);
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Profile updated successfully!'),
@@ -181,6 +196,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           TextButton(
             onPressed: () {
+              // Clear the current user tracking
+              clearCurrentUser();
               Navigator.pop(context);
               Navigator.pushReplacementNamed(context, AppRoutes.login);
             },

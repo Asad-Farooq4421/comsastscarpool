@@ -117,3 +117,6 @@ Ride? getRideById(String rideId) {
     return null;
   }
 }
+List<Ride> getRidesByDriverEmail(String driverEmail) {
+  return dummyRides.where((ride) => ride.driverId == driverEmail).toList();
+}
