@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../data/ride_requests.dart';
-import '../../models/request_model.dart';
+import '../../data/dummy_chats.dart';
+import '../../models/chat_model.dart';
 import '../../models/ride_model.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../widgets/app_bottom_nav.dart';
+import '../../data/dummy_rides.dart';
+import '../../data/ride_requests.dart';
+import '../chat/individual_chat_screen.dart'; // for currentUser
 
 class RideDetailsScreen extends StatefulWidget {
   final Ride ride;
-
   const RideDetailsScreen({super.key, required this.ride});
 
   @override
@@ -17,7 +19,7 @@ class RideDetailsScreen extends StatefulWidget {
 }
 
 class _RideDetailsScreenState extends State<RideDetailsScreen> {
-  RideRequest? myRequest;
+  PassengerInfo? myRequest;
   Timer? _timer;
 
   @override
@@ -37,17 +39,19 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     super.dispose();
   }
 
-  // 🔍 Find user's request
+  // 🔍 Load this user's request from ride.passengers
   void _loadRequest() {
-    final matches = rideRequests.where(
-          (req) =>
-      req.ride == widget.ride &&
-          req.passengerName == currentUser,
+    final match = widget.ride.passengers.firstWhere(
+          (p) => p.userId == currentUser?['email'],
+      orElse: () => myRequest ?? PassengerInfo(userId: '', name: '', status: ''),
     );
 
-    setState(() {
-      myRequest = matches.isNotEmpty ? matches.first : null;
-    });
+    // Only update if a real match is found
+    if (match.userId.isNotEmpty) {
+      setState(() {
+        myRequest = match;
+      });
+    }
   }
 
   @override
@@ -57,19 +61,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
 
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 0,
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.popUntil(context, (route) => route.isFirst);
-          }
-        },
-      ),
-
-      appBar: AppBar(
-        title: const Text("Ride Details"),
-      ),
-
+      appBar: AppBar(title: const Text("Ride Details")),
       body: Column(
         children: [
           _header(ride),
@@ -85,29 +77,18 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
       height: 180,
       width: double.infinity,
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF90A4AE), Color(0xFF66BB6A)],
-        ),
+        gradient: LinearGradient(colors: [Color(0xFF90A4AE), Color(0xFF66BB6A)]),
       ),
       child: Stack(
         children: [
-          const Center(
-            child: Icon(Icons.location_on, size: 40, color: Colors.blue),
-          ),
+          const Center(child: Icon(Icons.location_on, size: 40, color: Colors.blue)),
           Positioned(
             top: 12,
             right: 12,
             child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                ride.time,
-                style: const TextStyle(color: Colors.white),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
+              child: Text(ride.time, style: const TextStyle(color: Colors.white)),
             ),
           ),
         ],
@@ -131,13 +112,10 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
           _infoRow(ride),
           const Divider(height: 30),
           _driverSection(ride),
-
-          // 🔥 STATUS BAR
           if (myRequest != null) ...[
             const SizedBox(height: 20),
             _statusWidget(myRequest!),
           ],
-
           const Spacer(),
           _button(context, ride),
         ],
@@ -155,14 +133,8 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Icon(Icons.circle, size: 10, color: Colors.blue),
-              Expanded(
-                child: Container(
-                  width: 2,
-                  color: Colors.grey.shade300,
-                ),
-              ),
-              const Icon(Icons.location_on,
-                  size: 18, color: Colors.green),
+              Expanded(child: Container(width: 2, color: Colors.grey.shade300)),
+              const Icon(Icons.location_on, size: 18, color: Colors.green),
             ],
           ),
           const SizedBox(width: 12),
@@ -184,11 +156,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   Widget _locationTile(String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.caption),
-        const SizedBox(height: 2),
-        Text(value, style: AppTextStyles.bodyLarge),
-      ],
+      children: [Text(label, style: AppTextStyles.caption), const SizedBox(height: 2), Text(value, style: AppTextStyles.bodyLarge)],
     );
   }
 
@@ -199,8 +167,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         Expanded(
           child: Row(
             children: [
-              Icon(Icons.calendar_today,
-                  size: 18, color: AppColors.textSecondary),
+              Icon(Icons.calendar_today, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: 6),
               Text(ride.date, style: AppTextStyles.bodyMedium),
             ],
@@ -208,15 +175,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         ),
         Row(
           children: [
-            Icon(Icons.attach_money,
-                size: 18, color: AppColors.textSecondary),
+            
             const SizedBox(width: 4),
-            Text(
-              "Rs. ${ride.price}/seat",
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.secondary,
-              ),
-            ),
+            Text("Rs. ${ride.price}/seat", style: AppTextStyles.bodyMedium.copyWith(color: AppColors.secondary)),
           ],
         ),
       ],
@@ -228,14 +189,21 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text("Driver", style: AppTextStyles.heading3),
-            Text("View Profile",
-                style: TextStyle(color: AppColors.secondary)),
-          ],
-        ),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text("Driver", style: AppTextStyles.heading3),
+          GestureDetector(
+          onTap: () {
+          _showDriverProfile(context, ride);
+          },
+            child: Text(
+              "View Profile",
+              style: TextStyle(
+                color: AppColors.secondary,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ]),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -245,13 +213,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(ride.driverName,
-                      style: AppTextStyles.bodyLarge),
+                  Text(ride.driverName, style: AppTextStyles.bodyLarge),
                   const SizedBox(height: 4),
-                  Text(
-                    "${ride.availableSeats ?? 0} seats available",
-                    style: AppTextStyles.caption,
-                  ),
+                  Text("${ride.availableSeats ?? 0} seats available", style: AppTextStyles.caption),
                 ],
               ),
             ),
@@ -261,10 +225,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     );
   }
 
-  // STATUS UI
-  Widget _statusWidget(RideRequest request) {
+  // STATUS
+  Widget _statusWidget(PassengerInfo request) {
     Color color;
-
     switch (request.status) {
       case "accepted":
         color = Colors.green;
@@ -278,19 +241,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-      ),
+      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
       child: Row(
-        children: [
-          Icon(Icons.info, color: color),
-          const SizedBox(width: 8),
-          Text(
-            "Request ${request.status}",
-            style: TextStyle(color: color),
-          ),
-        ],
+        children: [Icon(Icons.info, color: color), const SizedBox(width: 8), Text("Request ${request.status}", style: TextStyle(color: color))],
       ),
     );
   }
@@ -301,62 +254,46 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor:
-        isRequested ? Colors.red : AppColors.secondary,
+        backgroundColor: isRequested ? Colors.red : AppColors.secondary,
         minimumSize: const Size(double.infinity, 50),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       onPressed: () {
         if (isRequested) {
-          _cancelRequest(context);
+          _cancelRequest();
         } else {
-          _requestRide(context, ride);
+          _requestRide(ride);
         }
       },
-      child: Text(
-        isRequested ? "Cancel Request" : "Request Ride",
-        style: AppTextStyles.button,
-      ),
+      child: Text(isRequested ? "Cancel Request" : "Request Ride", style: AppTextStyles.button),
     );
   }
 
-  //  REQUEST
-  void _requestRide(BuildContext context, Ride ride) {
+  void _requestRide(Ride ride) {
     if ((ride.availableSeats ?? 0) <= 0) {
       _showSnack("No seats available");
       return;
     }
 
-    final request = RideRequest(
-      ride: ride,
-      passengerName: currentUser,
+    final request = PassengerInfo(
+      userId: currentUser?['email'] ?? "",
+      name: currentUser?['name'] ?? "Unknown",
       status: "pending",
     );
 
-    rideRequests.add(request);
-    ride.availableSeats = (ride.availableSeats ?? 1) - 1;
-
     setState(() {
+      ride.passengers.add(request);
+      ride.availableSeats = (ride.availableSeats ?? 1) - 1;
       myRequest = request;
     });
 
     _showSnack("Request sent");
   }
 
-  // CANCEL
-  void _cancelRequest(BuildContext context) {
-    rideRequests.removeWhere(
-          (req) =>
-      req.ride == widget.ride &&
-          req.passengerName == currentUser,
-    );
-
-    widget.ride.availableSeats =
-        (widget.ride.availableSeats ?? 0) + 1;
-
+  void _cancelRequest() {
     setState(() {
+      widget.ride.passengers.removeWhere((p) => p.userId == currentUser?['email']);
+      widget.ride.availableSeats = (widget.ride.availableSeats ?? 0) + 1;
       myRequest = null;
     });
 
@@ -364,7 +301,160 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   }
 
   void _showSnack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
+}
+
+void _showDriverProfile(BuildContext context, Ride ride) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Avatar
+              CircleAvatar(
+                radius: 35,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                child: Text(
+                  ride.driverName[0],
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Name
+              Text(
+                ride.driverName,
+                style: AppTextStyles.heading2,
+              ),
+
+              const SizedBox(height: 6),
+
+              // Rating
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.star, color: Colors.orange, size: 18),
+                  const SizedBox(width: 4),
+                  Text(
+                    ride.driverRating.toString(),
+                    style: AppTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Info
+              _infoRow("Driver ID", ride.driverId),
+              _infoRow("Seats", "${ride.availableSeats}/${ride.totalSeats}"),
+              if (ride.notes.isNotEmpty)
+                _infoRow("Notes", ride.notes),
+
+              const SizedBox(height: 20),
+
+              // Chat Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context); // close dialog
+                    _openChat(context, ride);
+                  },
+                  icon: const Icon(Icons.chat),
+                  label: const Text("Chat with Driver"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Close Button
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Close"),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Widget _infoRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: AppTextStyles.caption),
+        Flexible(
+          child: Text(
+            value,
+            style: AppTextStyles.bodyMedium,
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _openChat(BuildContext context, Ride ride) {
+
+  final currentUserId = currentUser?['email'] ?? "unknown_user";
+
+  // 🔍 Find existing chat (same driver + same ride)
+  ChatModel? existingChat;
+
+  try {
+    existingChat = dummyChats.firstWhere(
+          (chat) =>
+      chat.userId == ride.driverId &&
+          chat.rideId == ride.rideId,
+    );
+  } catch (e) {
+    existingChat = null;
+  }
+
+  // 🆕 Create new chat if not found
+  if (existingChat == null) {
+    final newChat = ChatModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: ride.driverId, // 👈 driver
+      userName: ride.driverName,
+      userPhoto: ride.driverPhoto,
+      lastMessage: "",
+      timestamp: "",
+      unread: 0,
+      rideId: ride.rideId,
+    );
+
+    dummyChats.add(newChat);
+    existingChat = newChat;
+  }
+
+  // 🚀 Open chat
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const IndividualChatScreen(),
+      settings: RouteSettings(arguments: existingChat),
+    ),
+  );
 }

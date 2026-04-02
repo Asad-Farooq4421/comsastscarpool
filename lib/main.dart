@@ -1,3 +1,4 @@
+import 'package:comsastscarpool/screens/MainScreen.dart';
 import 'package:comsastscarpool/screens/driver/driver_home_screen.dart';
 import 'package:comsastscarpool/screens/driver/edit_ride_screen.dart';
 import 'package:comsastscarpool/screens/driver/post_ride_screen.dart';
@@ -52,10 +53,11 @@ class CampusCarpoolApp extends StatelessWidget {
         AppRoutes.profile: (context) => const ProfileScreen(),
         AppRoutes.settings: (context) => const SettingsScreen(),
 
+        AppRoutes.main: (context) => const MainScreen(),
+
+
         AppRoutes.chatList: (context) => const ChatListScreen(),
         AppRoutes.individualChat: (context) => const IndividualChatScreen(),
-        AppRoutes.searchRides: (context) => const SearchScreen(),
-        AppRoutes.driverHome: (context) => const DriverHomeScreen(),
         AppRoutes.postRide: (context) => const PostRideScreen(),
         AppRoutes.editRide: (context) => const EditRideScreen(),
         AppRoutes.rideRequests: (context) => const RideRequestsInboxScreen(),

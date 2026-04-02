@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import '../MainScreen.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../utils/routes.dart';
@@ -64,7 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
           _emailController.clear();
           _passwordController.clear();
 
-          Navigator.pushReplacementNamed(context, AppRoutes.profile);
+          Navigator.pushReplacementNamed(context, AppRoutes.main);
+
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

@@ -2,17 +2,22 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 
+import '../../data/dummy_users.dart';
 import '../../models/ride_model.dart';
 import '../../data/dummy_rides.dart';
 import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
-import '../../widgets/app_bottom_nav.dart';
-import '../driver/driver_home_screen.dart';
-import '../profile/profile_screen.dart';
+
+
 import 'ride_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final VoidCallback onSwitch;
+
+  const SearchScreen({
+    super.key,
+    required this.onSwitch,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -27,7 +32,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<Ride> filteredRides = [];
   bool hasSearched = false;
+  bool isDriverUser = false;
 
+  @override
+  void initState() {
+    super.initState();
+    isDriverUser = isCurrentUserDriver();
+  }
   //SEARCH FUNCTION
   void searchRides() {
     final from = fromController.text.toLowerCase().trim();
@@ -58,27 +69,6 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
 
-      bottomNavigationBar: AppBottomNav(
-        currentIndex: 0, // Home tab
-        onTap: (index) {
-          switch (index) {
-            case 0:
-            // Already on Home, do nothing
-              break;
-            case 1:
-            // Navigate to Rides screen if you have a separate RidesScreen
-            // Navigator.push(context, MaterialPageRoute(builder: (_) => RidesScreen()));
-              break;
-            case 2:
-            // Navigate to Chats
-              break;
-            case 3:
-            // Navigate to Profile
-              Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen()));
-              break;
-          }
-        },
-      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -144,14 +134,12 @@ class _SearchScreenState extends State<SearchScreen> {
           // Role Toggle
           RoleToggle(
             selectedRole: selectedRole,
+            isDriverEnabled: isDriverUser, // 👈 ADD THIS
             onChanged: (role) {
               if (role == UserRole.driver) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DriverHomeScreen(),
-                  ),
-                );
+                if (isDriverUser) {
+                  widget.onSwitch();
+                }
               } else {
                 setState(() {
                   selectedRole = UserRole.passenger;
@@ -286,8 +274,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              RideDetailsScreen(ride: ride),
+                          builder: (_) => RideDetailsScreen(ride: ride),
                         ),
                       );
                     },

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-
-
 enum UserRole {
   passenger,
   driver,
@@ -10,11 +8,13 @@ enum UserRole {
 class RoleToggle extends StatelessWidget {
   final UserRole selectedRole;
   final Function(UserRole) onChanged;
+  final bool? isDriverEnabled; // 👈 nullable
 
   const RoleToggle({
     super.key,
     required this.selectedRole,
     required this.onChanged,
+    this.isDriverEnabled,
   });
 
   @override
@@ -37,18 +37,29 @@ class RoleToggle extends StatelessWidget {
   Widget _buildButton(String text, UserRole role) {
     final bool isSelected = selectedRole == role;
 
+    final bool driverEnabled = isDriverEnabled ?? true; // 👈 fallback
+
+    final bool isDisabled =
+        role == UserRole.driver && !driverEnabled;
+
     return GestureDetector(
-      onTap: () => onChanged(role),
+      onTap: isDisabled ? null : () => onChanged(role),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.transparent,
+          color: isSelected
+              ? Colors.blue
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
+            color: isDisabled
+                ? Colors.grey // 👈 disabled text
+                : isSelected
+                ? Colors.white
+                : Colors.black,
             fontWeight: FontWeight.w500,
           ),
         ),

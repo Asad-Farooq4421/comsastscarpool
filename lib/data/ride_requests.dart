@@ -1,8 +1,9 @@
 import '../models/request_model.dart';
+import 'dummy_users.dart';
 
 
 // All ride requests
 List<RideRequest> rideRequests = [];
 
-// 👤 Fake current user
-const String currentUser = "Passenger1";
+// current user
+final currentUser = getCurrentUser();

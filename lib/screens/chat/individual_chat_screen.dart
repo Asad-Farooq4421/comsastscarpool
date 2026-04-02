@@ -3,8 +3,10 @@ import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../data/dummy_messages.dart';
 import '../../data/dummy_chats.dart';
+import '../../data/dummy_users.dart';
 import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
+
 
 class IndividualChatScreen extends StatefulWidget {
   const IndividualChatScreen({super.key});
@@ -19,6 +21,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   List<MessageModel> messages = [];
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final currentUser = getCurrentUser();
 
   @override
   void didChangeDependencies() {
@@ -83,7 +86,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     final newMessage = MessageModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       chatId: chatId,
-      senderId: 'current_user_123',
+      senderId: currentUser?['email'] ?? "unknown_user",
       text: messageController.text.trim(),
       timestamp: _getFormattedTime(),
       isRead: false,

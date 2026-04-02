@@ -4,6 +4,7 @@ import '../../constants/text_styles.dart';
 import '../../utils/routes.dart';
 import '../../widgets/custom_button.dart';
 import '../../data/dummy_users.dart';
+import '../passenger/my_requests_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -338,7 +339,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (!_isDriver) _buildPassengerStats(),
+            if (!_isDriver) ...[
+              _buildPassengerStats(),
+
+              const SizedBox(height: 16),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: CustomButton(
+                  text: 'My Requests',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MyRequestsScreen(),
+                      ),
+                    );
+                  },
+                  backgroundColor: AppColors.primary, // ✅ visible now
+                ),
+              ),
+            ],
             if (_isDriver) _buildDriverStats(),
             const SizedBox(height: 16),
             if (_isDriver) _buildVehicleDetails(),

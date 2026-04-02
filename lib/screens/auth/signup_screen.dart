@@ -121,7 +121,7 @@ class _SignupScreenState extends State<SignupScreen> {
           _confirmPasswordController.clear();
 
           Future.delayed(const Duration(seconds: 1), () {
-            Navigator.pushReplacementNamed(context, AppRoutes.profile);
+            Navigator.pushReplacementNamed(context, AppRoutes.main);
           });
         }
       });

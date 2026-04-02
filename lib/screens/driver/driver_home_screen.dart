@@ -7,8 +7,14 @@ import '../../constants/text_styles.dart';
 import '../../data/dummy_rides.dart';
 import '../../widgets/driver_ride_card.dart';
 
+
 class DriverHomeScreen extends StatefulWidget {
-  const DriverHomeScreen({super.key});
+  final VoidCallback onSwitch;
+
+  const DriverHomeScreen({
+    super.key,
+    required this.onSwitch,
+  });
 
   @override
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
@@ -91,7 +97,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       selectedRole: selectedRole,
                       onChanged: (role) {
                         if (role == UserRole.passenger) {
-                          Navigator.pushReplacementNamed(context, AppRoutes.searchRides);
+                          widget.onSwitch();
                         }
                       },
                     ),
@@ -176,24 +182,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ],
         ),
       ),
-      
-      // 📍 Bottom Navigation Placeholder (matched to image)
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Rides'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
-        ],
-        onTap: (index) {
-          if (index == 2) Navigator.pushNamed(context, AppRoutes.chatList);
-          if (index == 3) Navigator.pushNamed(context, AppRoutes.profile);
-        },
-      ),
+
     );
   }
 
