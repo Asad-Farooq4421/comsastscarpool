@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../models/user_model.dart';
+
 import '../../models/ride_model.dart';
 import '../../data/dummy_rides.dart';
 import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
+import '../../widgets/app_bottom_nav.dart';
 import '../driver/driver_home_screen.dart';
+import '../profile/profile_screen.dart';
+import 'ride_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -18,28 +21,34 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   UserRole selectedRole = UserRole.passenger;
 
-  final TextEditingController destinationController =
-  TextEditingController();
+  final TextEditingController fromController = TextEditingController();
+  final TextEditingController toController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
 
   List<Ride> filteredRides = [];
   bool hasSearched = false;
 
-  // 🔍 SEARCH FUNCTION
+  //SEARCH FUNCTION
   void searchRides() {
-    final destination = destinationController.text.toLowerCase().trim();
+    final from = fromController.text.toLowerCase().trim();
+    final to = toController.text.toLowerCase().trim();
     final date = dateController.text.trim();
 
     setState(() {
       hasSearched = true;
 
       filteredRides = dummyRides.where((ride) {
-        final matchDestination =
-        ride.destination.toLowerCase().contains(destination);
+        final matchFrom =
+            from.isEmpty || ride.from.toLowerCase().contains(from);
+
+        final matchTo =
+            to.isEmpty || ride.destination.toLowerCase().contains(to);
 
         final matchDate = date.isEmpty || ride.date == date;
 
-        return matchDestination && matchDate;
+        final hasSeats = (ride.availableSeats) > 0;
+
+        return matchFrom && matchTo && matchDate && hasSeats;
       }).toList();
     });
   }
@@ -48,7 +57,28 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      bottomNavigationBar: _buildBottomNav(),
+
+      bottomNavigationBar: AppBottomNav(
+        currentIndex: 0, // Home tab
+        onTap: (index) {
+          switch (index) {
+            case 0:
+            // Already on Home, do nothing
+              break;
+            case 1:
+            // Navigate to Rides screen if you have a separate RidesScreen
+            // Navigator.push(context, MaterialPageRoute(builder: (_) => RidesScreen()));
+              break;
+            case 2:
+            // Navigate to Chats
+              break;
+            case 3:
+            // Navigate to Profile
+              Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen()));
+              break;
+          }
+        },
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -61,7 +91,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // 🔵 HEADER
+  // HEADER
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -105,7 +135,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 6),
 
           Text(
-            "Where are we heading?",
+            "Search by route and date",
             style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
           ),
 
@@ -134,23 +164,52 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // 🔍 SEARCH FORM
+  // SEARCH FORM
   Widget _buildSearchForm() {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           _inputField(
-            controller: destinationController,
-            hint: "Where to?",
+            controller: fromController,
+            hint: "From",
+            icon: Icons.circle,
+          ),
+          const SizedBox(height: 10),
+
+          _inputField(
+            controller: toController,
+            hint: "To",
             icon: Icons.location_on,
           ),
           const SizedBox(height: 10),
-          _inputField(
-            controller: dateController,
-            hint: "When?",
-            icon: Icons.calendar_today,
+
+          // DATE
+          GestureDetector(
+            onTap: () async {
+              DateTime? pickedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime.now(),
+                lastDate: DateTime(2100),
+              );
+
+              if (pickedDate != null) {
+                setState(() {
+                  dateController.text =
+                  pickedDate.toIso8601String().split('T')[0];
+                });
+              }
+            },
+            child: AbsorbPointer(
+              child: _inputField(
+                controller: dateController,
+                hint: "Select Date",
+                icon: Icons.calendar_today,
+              ),
+            ),
           ),
+
           const SizedBox(height: 16),
 
           ElevatedButton.icon(
@@ -170,7 +229,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // 🧾 INPUT FIELD
+  // INPUT FIELD
   Widget _inputField({
     required TextEditingController controller,
     required String hint,
@@ -194,7 +253,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // 🚗 RIDE LIST (UPDATED)
+  // RIDE LIST
   Widget _buildRideList() {
     return Expanded(
       child: Padding(
@@ -220,28 +279,25 @@ class _SearchScreenState extends State<SearchScreen> {
                 itemCount: filteredRides.length,
                 itemBuilder: (context, index) {
                   final ride = filteredRides[index];
-                  return RideCard(ride);
+
+                  return RideCard(
+                    ride: ride,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              RideDetailsScreen(ride: ride),
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  // 🔻 BOTTOM NAV
-  Widget _buildBottomNav() {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      selectedItemColor: AppColors.secondary,
-      unselectedItemColor: AppColors.textHint,
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-        BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: "Rides"),
-        BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chats"),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-      ],
     );
   }
 }

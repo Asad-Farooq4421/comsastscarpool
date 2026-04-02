@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
 
+
+
+enum UserRole {
+  passenger,
+  driver,
+}
 
 class RoleToggle extends StatelessWidget {
   final UserRole selectedRole;

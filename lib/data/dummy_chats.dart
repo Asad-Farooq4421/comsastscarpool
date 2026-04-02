@@ -1,6 +1,9 @@
 import '../models/chat_model.dart';
 
-final List<ChatModel> dummyChats = [
+// Current logged-in user ID
+const String currentUserId = 'current_user_123';
+
+List<ChatModel> dummyChats = [
   ChatModel(
     id: 'chat1',
     userId: 'user1',
@@ -8,7 +11,7 @@ final List<ChatModel> dummyChats = [
     userPhoto: 'https://i.pravatar.cc/150?img=1',
     lastMessage: 'Okay, see you at 5pm',
     timestamp: '10:30 AM',
-    unread: 2,
+    unread: 2,  // 2 unread messages
     rideId: 'ride1',
   ),
   ChatModel(
@@ -18,7 +21,7 @@ final List<ChatModel> dummyChats = [
     userPhoto: 'https://i.pravatar.cc/150?img=2',
     lastMessage: 'How much for the ride?',
     timestamp: '9:45 AM',
-    unread: 0,
+    unread: 0,  // Already read
     rideId: 'ride2',
   ),
   ChatModel(
@@ -28,7 +31,7 @@ final List<ChatModel> dummyChats = [
     userPhoto: 'https://i.pravatar.cc/150?img=3',
     lastMessage: 'I\'m at the gate',
     timestamp: '8:20 AM',
-    unread: 1,
+    unread: 1,  // 1 unread message
     rideId: 'ride3',
   ),
   ChatModel(
