@@ -42,19 +42,44 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     });
   }
 
+  // void cancelRequest(Ride ride, PassengerInfo request) {
+  //   setState(() {
+  //     ride.passengers.removeWhere((p) => p.userId == request.userId);
+  //     ride.availableSeats = (ride.availableSeats ?? 0) + 1;
+  //   });
+  //
+  //   loadRequests();
+  //
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     const SnackBar(content: Text("Request cancelled")),
+  //   );
+  // }
+
+  //.................................................
   void cancelRequest(Ride ride, PassengerInfo request) {
-    setState(() {
-      ride.passengers.removeWhere((p) => p.userId == request.userId);
-      ride.availableSeats = (ride.availableSeats ?? 0) + 1;
-    });
+    final rideIndex = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
 
-    loadRequests();
+    if (rideIndex != -1) {
+      final currentRide = dummyRides[rideIndex];
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Request cancelled")),
-    );
+      // ✅ Explicit type declaration
+      List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
+      updatedPassengers.removeWhere((p) => p.userId == request.userId);
+
+      final updatedRide = currentRide.copyWith(
+        passengers: updatedPassengers,
+        pendingRequests: currentRide.pendingRequests - 1,
+      );
+
+      dummyRides[rideIndex] = updatedRide;
+
+      loadRequests();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Request cancelled")),
+      );
+    }
   }
-
   Color getStatusColor(String status) {
     switch (status) {
       case "accepted":
