@@ -33,6 +33,10 @@ class _MainScreenState extends State<MainScreen> {
           )
               : SearchScreen(
             onSwitch: () => setState(() => isDriverMode = true),
+            onNavigateToProfile: () {
+              ProfileScreen.shouldSwitchToDriver = true;  // ← SET FLAG
+              setState(() => currentIndex = 3);
+            },
           ),
 
           MyRidesScreen(allRides: dummyRides),

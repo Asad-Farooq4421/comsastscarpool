@@ -10,7 +10,7 @@ import '../driver/my_posted_rides_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
-
+  static bool shouldSwitchToDriver = false;
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -30,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _vehicleColorController = TextEditingController();
   final _vehiclePlateController = TextEditingController();
   final _vehicleSeatsController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _vehicleDetailsKey = GlobalKey();
 
   @override
   void initState() {
@@ -66,14 +68,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    // Check if we should open edit mode (coming from search screen)
-    final args = ModalRoute.of(context)?.settings.arguments;
-    if (args == 'openEditMode' && !_isEditing && !_isDriver) {
+    // Check if we need to switch to driver mode (coming from Search Screen)
+    if (ProfileScreen.shouldSwitchToDriver && !_isDriver) {
+      ProfileScreen.shouldSwitchToDriver = false;  // Reset flag
+
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {
+          _isDriver = true;
           _isEditing = true;
+          _hasShownDriverPopup = true;
         });
-        // Show a message to guide the user
+
+        // Scroll to vehicle details
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Scrollable.ensureVisible(
+            _vehicleDetailsKey.currentContext!,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeInOut,
+          );
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Please add your vehicle details to become a driver'),
@@ -83,13 +97,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       });
     }
+    // Check if we should open edit mode (coming from other places)
+    else {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args == 'openEditMode' && !_isEditing && !_isDriver) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          setState(() {
+            _isEditing = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please add your vehicle details to become a driver'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        });
+      }
+    }
   }
 // =============================================================
 
   void _showDriverModeDialog() {
-    // Mark that popup has been shown
-    _hasShownDriverPopup = true;
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -161,11 +190,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     ).then((confirmed) {
       if (confirmed == true) {
+        // ✅ ONLY set to true when user clicks "Yes, Continue"
+        _hasShownDriverPopup = true;
         setState(() {
           _isDriver = true;
           _isEditing = true;  // Open edit mode to fill vehicle details
         });
       }
+      // If user clicks "Not Now", _hasShownDriverPopup remains false
     });
   }
 
@@ -368,27 +400,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: _toggleEdit,
             ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.pushReplacementNamed(context, AppRoutes.driverHome);
-          } else if (index == 1) {
-            Navigator.pushReplacementNamed(context, AppRoutes.searchRides);
-          } else if (index == 2) {
-            Navigator.pushReplacementNamed(context, AppRoutes.chatList);
-          }
-        },
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -718,6 +729,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildVehicleDetails() {
     return Container(
+      key: _vehicleDetailsKey,
       color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(20),

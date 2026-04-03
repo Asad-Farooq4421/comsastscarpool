@@ -14,10 +14,12 @@ import '../../utils/routes.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback onSwitch;
+  final VoidCallback onNavigateToProfile;  // ← ADD THIS
 
   const SearchScreen({
     super.key,
     required this.onSwitch,
+    required this.onNavigateToProfile,  // ← ADD THIS
   });
 
   @override
@@ -41,10 +43,13 @@ class _SearchScreenState extends State<SearchScreen> {
     super.initState();
     isDriverUser = isCurrentUserDriver();
   }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh user status when returning to this screen (after profile update)
+    isDriverUser = isCurrentUserDriver();
+  }
   void _showDriverModeDialog() {
-    // Mark that popup has been shown
-    _hasShownDriverPopup = true;
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -116,13 +121,12 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     ).then((confirmed) {
       if (confirmed == true) {
-        // Navigate to profile with edit mode open
-        Navigator.pushReplacementNamed(
-            context,
-            AppRoutes.profile,
-            arguments: 'openEditMode'
-        );
+        // ✅ ONLY set to true when user clicks "Yes, Continue"
+        _hasShownDriverPopup = true;
+        // ✅ Navigate to profile via callback instead of direct navigation
+        widget.onNavigateToProfile();
       }
+      // If user clicks "Not Now", _hasShownDriverPopup remains false
     });
   }
   //SEARCH FUNCTION
@@ -231,14 +235,11 @@ class _SearchScreenState extends State<SearchScreen> {
                   if (!_hasShownDriverPopup) {
                     _showDriverModeDialog();
                   } else {
-                    // Popup already shown before, just go to profile
-                    Navigator.pushReplacementNamed(
-                        context,
-                        AppRoutes.profile,
-                        arguments: 'openEditMode'
-                    );
+                    // ✅ Popup already shown before, go to profile via callback
+                    widget.onNavigateToProfile();
                   }
                 }
+
               } else {
                 setState(() {
                   selectedRole = UserRole.passenger;
