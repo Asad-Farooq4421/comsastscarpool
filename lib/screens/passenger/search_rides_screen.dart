@@ -10,6 +10,7 @@ import '../../widgets/ride_card.dart';
 
 
 import 'ride_details_screen.dart';
+import '../../utils/routes.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback onSwitch;
@@ -33,11 +34,96 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Ride> filteredRides = [];
   bool hasSearched = false;
   bool isDriverUser = false;
+  bool _hasShownDriverPopup = false;
 
   @override
   void initState() {
     super.initState();
     isDriverUser = isCurrentUserDriver();
+  }
+  void _showDriverModeDialog() {
+    // Mark that popup has been shown
+    _hasShownDriverPopup = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.directions_car, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Become a Driver?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('To start offering rides as a driver, you need to provide:'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Vehicle type (Car/Bike)'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Vehicle model'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Color & License plate'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Number of seats'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You can edit these details anytime from your profile.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not Now'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('Yes, Continue'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        // Navigate to profile with edit mode open
+        Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.profile,
+            arguments: 'openEditMode'
+        );
+      }
+    });
   }
   //SEARCH FUNCTION
   void searchRides() {
@@ -134,11 +220,24 @@ class _SearchScreenState extends State<SearchScreen> {
           // Role Toggle
           RoleToggle(
             selectedRole: selectedRole,
-            isDriverEnabled: isDriverUser, // 👈 ADD THIS
+            isDriverEnabled: true,
             onChanged: (role) {
               if (role == UserRole.driver) {
                 if (isDriverUser) {
+                  // Already a driver - go to driver home
                   widget.onSwitch();
+                } else {
+                  // Not a driver yet - check if popup already shown
+                  if (!_hasShownDriverPopup) {
+                    _showDriverModeDialog();
+                  } else {
+                    // Popup already shown before, just go to profile
+                    Navigator.pushReplacementNamed(
+                        context,
+                        AppRoutes.profile,
+                        arguments: 'openEditMode'
+                    );
+                  }
                 }
               } else {
                 setState(() {
