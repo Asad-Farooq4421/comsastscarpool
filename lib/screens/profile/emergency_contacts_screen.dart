@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../models/emergency_contact_model.dart';
+import '../../data/dummy_emergency_contacts.dart';  // ← Import dummy data with store logic
+import '../../data/dummy_users.dart';  // ← For getCurrentUserName()
 
 class EmergencyContactsScreen extends StatefulWidget {
   const EmergencyContactsScreen({super.key});
@@ -30,25 +32,22 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDummyContacts();
+    _loadContacts();
   }
 
-  void _loadDummyContacts() {
-    // Dummy data for demo
-    contacts = [
-      EmergencyContact(
-        id: '1',
-        name: 'Ahmad Raza',
-        phone: '+92 300 1234567',
-        relationship: 'Friend',
-      ),
-      EmergencyContact(
-        id: '2',
-        name: 'Sara Khan',
-        phone: '+92 321 7654321',
-        relationship: 'Sibling',
-      ),
-    ];
+  @override
+  void dispose() {
+    nameController.dispose();  // ← IMPORTANT: Dispose controllers!
+    phoneController.dispose();
+    super.dispose();
+  }
+
+
+  void _loadContacts() {
+    // ✅ Get contacts for CURRENT logged-in user only
+    setState(() {
+      contacts = getCurrentUserEmergencyContacts();
+    });
   }
 
   void _addContact() {
@@ -61,15 +60,15 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       return;
     }
 
-    final newContact = EmergencyContact(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    // ✅ Add contact for current user using store logic
+    addEmergencyContactForCurrentUser(
       name: nameController.text.trim(),
       phone: phoneController.text.trim(),
       relationship: selectedRelationship,
     );
 
     setState(() {
-      contacts.add(newContact);
+      contacts = getCurrentUserEmergencyContacts();  // Refresh list
       isAdding = false;
       nameController.clear();
       phoneController.clear();
@@ -92,8 +91,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           ),
           TextButton(
             onPressed: () {
+              // ✅ Delete contact using store logic
+              deleteEmergencyContact(id);
+
               setState(() {
-                contacts.removeWhere((contact) => contact.id == id);
+                contacts = getCurrentUserEmergencyContacts();  // Refresh list
               });
               Navigator.pop(context);
               _showSuccess('Contact deleted');
@@ -117,6 +119,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     );
   }
 
+  void _refreshContacts() {
+    setState(() {
+      contacts = getCurrentUserEmergencyContacts();
+    });
+  }
+
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -131,6 +139,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get current user name for header
+    final currentUserName = getCurrentUserName();
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -152,9 +163,13 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: RefreshIndicator(  // ← Add pull to refresh
+        onRefresh: () async {
+          _refreshContacts();
+        },
+        child: Column(
         children: [
-          // Info Banner
+          // Info Banner with current user name
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(12),
@@ -168,7 +183,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'These contacts will be notified if you use the emergency SOS feature. At least one contact is recommended.',
+                    '$currentUserName,These contacts will be notified if you use the emergency SOS feature. At least one contact is recommended.',
                     style: AppTextStyles.caption.copyWith(
                       color: Colors.blue.shade700,
                     ),
@@ -191,10 +206,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
               itemBuilder: (context, index) {
                 final contact = contacts[index];
                 return _buildContactCard(contact);
-              },
-            ),
-          ),
-        ],
+                },
+              ),
+           ),
+          ],
+        ),
       ),
     );
   }
@@ -249,7 +265,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
           // Relationship Dropdown
           DropdownButtonFormField<String>(
-            value: selectedRelationship,
+            initialValue: selectedRelationship,
             decoration: InputDecoration(
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -327,12 +343,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withAlpha(25),
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
-                contact.name[0].toUpperCase(),
+                contact.name.isNotEmpty ? contact.name[0].toUpperCase() : '?',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
