@@ -5,8 +5,8 @@ import '../../models/chat_model.dart';
 import '../../models/ride_model.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../widgets/app_bottom_nav.dart';
-import '../../data/dummy_rides.dart';
+// import '../../widgets/app_bottom_nav.dart';
+// import '../../data/dummy_rides.dart';
 import '../../data/ride_requests.dart';
 import '../chat/individual_chat_screen.dart'; // for currentUser
 
@@ -175,7 +175,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         ),
         Row(
           children: [
-            
+
             const SizedBox(width: 4),
             Text("Rs. ${ride.price}/seat", style: AppTextStyles.bodyMedium.copyWith(color: AppColors.secondary)),
           ],
@@ -192,9 +192,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text("Driver", style: AppTextStyles.heading3),
           GestureDetector(
-          onTap: () {
-          _showDriverProfile(context, ride);
-          },
+            onTap: () {
+              _showDriverProfile(context, ride);
+            },
             child: Text(
               "View Profile",
               style: TextStyle(
@@ -358,10 +358,10 @@ void _showDriverProfile(BuildContext context, Ride ride) {
               const SizedBox(height: 16),
 
               // Info
-              _infoRow("Driver ID", ride.driverId),
-              _infoRow("Seats", "${ride.availableSeats}/${ride.totalSeats}"),
+              _infoRowDialog("Driver ID", ride.driverId),
+              _infoRowDialog("Seats", "${ride.availableSeats}/${ride.totalSeats}"),
               if (ride.notes.isNotEmpty)
-                _infoRow("Notes", ride.notes),
+                _infoRowDialog("Notes", ride.notes),
 
               const SizedBox(height: 20),
 
@@ -396,7 +396,7 @@ void _showDriverProfile(BuildContext context, Ride ride) {
   );
 }
 
-Widget _infoRow(String label, String value) {
+Widget _infoRowDialog(String label, String value) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: Row(
@@ -415,46 +415,75 @@ Widget _infoRow(String label, String value) {
   );
 }
 
+// ✅ FIXED: Updated _openChat function to work with new ChatModel
 void _openChat(BuildContext context, Ride ride) {
-
   final currentUserId = currentUser?['email'] ?? "unknown_user";
+  final driverId = ride.driverId;
 
-  // 🔍 Find existing chat (same driver + same ride)
+  print('🔍 Opening chat - Current User: $currentUserId, Driver: $driverId, Ride: ${ride.rideId}');
+
+  if (currentUserId == "unknown_user") {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please login to chat")),
+    );
+    return;
+  }
+
+  // 🔍 Find existing chat
   ChatModel? existingChat;
 
-  try {
-    existingChat = dummyChats.firstWhere(
-          (chat) =>
-      chat.userId == ride.driverId &&
-          chat.rideId == ride.rideId,
-    );
-  } catch (e) {
-    existingChat = null;
+  for (var chat in dummyChats) {
+    print('📋 Checking chat: ${chat.id}, Participants: ${chat.participants}, RideId: ${chat.rideId}');
+
+    if (chat.participants.contains(currentUserId) &&
+        chat.participants.contains(driverId) &&
+        chat.rideId == ride.rideId) {
+      existingChat = chat;
+      print('✅ Found existing chat: ${chat.id}');
+      break;
+    }
   }
 
   // 🆕 Create new chat if not found
   if (existingChat == null) {
-    final newChat = ChatModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: ride.driverId, // 👈 driver
-      userName: ride.driverName,
-      userPhoto: ride.driverPhoto,
-      lastMessage: "",
-      timestamp: "",
-      unread: 0,
-      rideId: ride.rideId,
-    );
+    print('🆕 No existing chat found, creating new one...');
 
-    dummyChats.add(newChat);
-    existingChat = newChat;
+    // Check again by participants only
+    for (var chat in dummyChats) {
+      if (chat.participants.contains(currentUserId) &&
+          chat.participants.contains(driverId)) {
+        existingChat = chat;
+        print('✅ Found existing chat by participants only: ${chat.id}');
+        break;
+      }
+    }
+
+    if (existingChat == null) {
+      // ✅ FIXED: Create new chat with unreadCounts map, not unreadCount
+      final newChat = ChatModel(
+        id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
+        participants: [currentUserId, driverId],
+        rideId: ride.rideId,
+        lastMessage: '',
+        lastMessageTime: '',
+        unreadCounts: {
+          currentUserId: 0,
+          driverId: 0,
+        },
+      );
+
+      addNewChat(newChat);
+      existingChat = newChat;
+      print('✅ Created new chat: ${newChat.id}');
+    }
   }
 
-  // 🚀 Open chat
+  // 🚀 Navigate to chat
   Navigator.push(
     context,
     MaterialPageRoute(
       builder: (_) => const IndividualChatScreen(),
-      settings: RouteSettings(arguments: existingChat),
+      settings: RouteSettings(arguments: existingChat!.id),
     ),
   );
 }

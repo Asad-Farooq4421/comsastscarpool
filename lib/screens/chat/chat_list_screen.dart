@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../data/dummy_chats.dart';
-import '../../data/dummy_messages.dart';
+import '../../data/dummy_users.dart';
 import '../../models/chat_model.dart';
 import '../../utils/routes.dart';
 
@@ -25,32 +25,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh when coming back from individual chat
     _loadChats();
   }
 
   void _loadChats() {
-    // Get only current user's chats
-    final currentUserChats = getCurrentUserChats();
-
-    // Update unread counts for each chat
-    for (int i = 0; i < currentUserChats.length; i++) {
-      final chat = currentUserChats[i];
-      final unreadCount = getUnreadCountForChat(chat.id);
-
-      // Update unread count in the chat object
-      if (chat.unread != unreadCount) {
-        final chatIndex = dummyChats.indexWhere((c) => c.id == chat.id);
-        if (chatIndex != -1) {
-          dummyChats[chatIndex] = chat.copyWith(unread: unreadCount);
-        }
-      }
-    }
-
     setState(() {
-      // Get fresh list after updates
       chats = List.from(getCurrentUserChats());
+      print('📋 Loaded ${chats.length} chats for user: ${getCurrentUserId()}');
     });
+  }
+
+  Map<String, String> _getOtherUserInfo(ChatModel chat) {
+    final currentUserId = getCurrentUserId();
+    final otherUserId = chat.getOtherParticipant(currentUserId);
+    final user = getUserByEmail(otherUserId);
+
+    return {
+      'name': user?['name'] ?? otherUserId.split('@').first,
+      'photo': user?['photo'] ?? '',
+      'firstLetter': (user?['name'] ?? otherUserId.split('@').first)[0].toUpperCase(),
+    };
   }
 
   @override
@@ -59,7 +53,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Gradient Header
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
@@ -94,18 +87,28 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ],
             ),
           ),
-
-          // Chat List
           Expanded(
             child: chats.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: chats.length,
-              itemBuilder: (context, index) {
-                final chat = chats[index];
-                return _buildChatCard(context, chat);
+                : RefreshIndicator(
+              onRefresh: () async {
+                _loadChats();
               },
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: chats.length,
+                itemBuilder: (context, index) {
+                  final chat = chats[index];
+                  final otherUser = _getOtherUserInfo(chat);
+                  return _buildChatCard(
+                    context,
+                    chat,
+                    otherUser['name']!,
+                    otherUser['photo']!,
+                    otherUser['firstLetter']!,
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -142,51 +145,51 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  Widget _buildChatCard(BuildContext context, ChatModel chat) {
+  Widget _buildChatCard(BuildContext context, ChatModel chat,
+      String otherUserName, String otherUserPhoto, String firstLetter) {
+
+    // ✅ FIXED: Get unread count for CURRENT USER only
+    final currentUserId = getCurrentUserId();
+    final unreadCount = chat.getUnreadCount(currentUserId);
+
     return InkWell(
       onTap: () async {
-        // Reset unread count when opening chat
+        print('📱 Opening chat: ${chat.id}');
         resetUnreadCount(chat.id);
-
-        // Navigate to individual chat
         final result = await Navigator.pushNamed(
           context,
           AppRoutes.individualChat,
-          arguments: chat.id, // Pass chat ID instead of full object
+          arguments: chat.id,
         );
-
-        // Refresh chat list when coming back
-        if (result == true) {
-          _loadChats();
-        }
+        _loadChats();
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // Profile Photo with Unread Badge
             Stack(
               children: [
-                CircleAvatar(
+                otherUserPhoto.isNotEmpty
+                    ? CircleAvatar(
                   radius: 28,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  backgroundImage: chat.userPhoto.isNotEmpty
-                      ? NetworkImage(chat.userPhoto)
-                      : null,
-                  onBackgroundImageError: (_, _) {},
-                  child: chat.userPhoto.isEmpty
-                      ? Text(
-                    chat.userName[0].toUpperCase(),
+                  backgroundImage: NetworkImage(otherUserPhoto),
+                  onBackgroundImageError: (_, __) {},
+                )
+                    : CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  child: Text(
+                    firstLetter,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
                     ),
-                  )
-                      : null,
+                  ),
                 ),
-                // Unread Badge - ONLY on profile circle
-                if (chat.unread > 0)
+                // ✅ FIXED: Use per-user unread count
+                if (unreadCount > 0)
                   Positioned(
                     right: 0,
                     top: 0,
@@ -199,7 +202,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          chat.unread > 9 ? '9+' : '${chat.unread}',
+                          unreadCount > 9 ? '9+' : '$unreadCount',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -212,8 +215,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ],
             ),
             const SizedBox(width: 12),
-
-            // Chat Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +224,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          chat.userName,
+                          otherUserName,
                           style: AppTextStyles.bodyLarge.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -232,7 +233,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       ),
                       Text(
-                        chat.timestamp,
+                        chat.lastMessageTime,
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.textHint,
                         ),
@@ -240,26 +241,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          chat.lastMessage.isEmpty
-                              ? 'No messages yet'
-                              : chat.lastMessage,
-                          style: AppTextStyles.bodyMedium.copyWith(
-                            color: chat.unread > 0
-                                ? AppColors.textPrimary
-                                : AppColors.textSecondary,
-                            fontWeight: chat.unread > 0
-                                ? FontWeight.w500
-                                : FontWeight.normal,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    chat.lastMessage.isEmpty ? 'No messages yet' : chat.lastMessage,
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: unreadCount > 0
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
+                      fontWeight: unreadCount > 0
+                          ? FontWeight.w500
+                          : FontWeight.normal,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),

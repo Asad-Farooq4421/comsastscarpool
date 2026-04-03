@@ -2,31 +2,60 @@ class MessageModel {
   final String id;
   final String chatId;
   final String senderId;
+  final String receiverId;
   final String text;
   final String timestamp;
-  bool isRead;  // Changed to non-final so we can update
-  final bool isMe;
+  bool isRead;
 
   MessageModel({
     required this.id,
     required this.chatId,
     required this.senderId,
+    required this.receiverId,
     required this.text,
     required this.timestamp,
-    required this.isRead,
-    required this.isMe,
+    this.isRead = false,
   });
 
-  // Copy with method to update read status
-  MessageModel copyWith({bool? isRead}) {
+  // DYNAMIC isMe - calculated when needed, not stored!
+  bool isMe(String currentUserId) {
+    return senderId == currentUserId;
+  }
+
+  // Check if message is for current user
+  bool isForMe(String currentUserId) {
+    return receiverId == currentUserId;
+  }
+
+  MessageModel copyWith({
+    String? id,
+    String? chatId,
+    String? senderId,
+    String? receiverId,
+    String? text,
+    String? timestamp,
+    bool? isRead,
+  }) {
     return MessageModel(
-      id: id,
-      chatId: chatId,
-      senderId: senderId,
-      text: text,
-      timestamp: timestamp,
+      id: id ?? this.id,
+      chatId: chatId ?? this.chatId,
+      senderId: senderId ?? this.senderId,
+      receiverId: receiverId ?? this.receiverId,
+      text: text ?? this.text,
+      timestamp: timestamp ?? this.timestamp,
       isRead: isRead ?? this.isRead,
-      isMe: isMe,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'chatId': chatId,
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'text': text,
+      'timestamp': timestamp,
+      'isRead': isRead,
+    };
   }
 }

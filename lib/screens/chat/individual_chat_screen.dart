@@ -20,24 +20,35 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   List<MessageModel> messages = [];
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isLoading = true;
 
   String get currentUserId => getCurrentUserId();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeChat();
+    });
+  }
 
-    // Get chat ID from route arguments (now it's a String, not ChatModel)
-    chatId = ModalRoute.of(context)!.settings.arguments as String;
+  void _initializeChat() {
+    final args = ModalRoute.of(context)?.settings.arguments;
 
-    // Find chat object from dummyChats
-    chat = dummyChats.firstWhere((c) => c.id == chatId);
+    if (args is String) {
+      chatId = args;
+      final foundChat = getChatById(chatId);
+      if (foundChat != null) {
+        chat = foundChat;
+        _loadMessages();
+        _markMessagesAsRead();
+        _scrollToBottom();
+      }
+    }
 
-    // Load messages for this chat using the function
-    _loadMessages();
-
-    // Mark messages as read when chat opens
-    _markMessagesAsRead();
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   void _loadMessages() {
@@ -46,46 +57,30 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     });
   }
 
+  // ✅ FIXED: Mark messages as read and reset unread count for current user
   void _markMessagesAsRead() {
-    // Use the function from dummy_messages.dart
-    markMessagesAsRead(chatId);
+    final currentUser = currentUserId;
 
-    // Update local messages list to reflect read status
-    _loadMessages();
+    // Mark all unread messages as read
+    bool updated = false;
+    for (int i = 0; i < messages.length; i++) {
+      if (messages[i].receiverId == currentUser && !messages[i].isRead) {
+        messages[i] = messages[i].copyWith(isRead: true);
+        updated = true;
+      }
+    }
 
-    // Update local chat object
-    final updatedChat = getChatById(chatId);
-    if (updatedChat != null) {
-      chat = updatedChat;
+    if (updated) {
+      // Reset unread count for current user in this chat
+      resetUnreadCount(chatId);
+      setState(() {});
+      print('✅ Messages marked as read for user: $currentUser in chat: $chatId');
     }
   }
 
-  void _sendMessage() {
-    if (messageController.text.trim().isEmpty) return;
-
-    // Use the function from dummy_messages.dart
-    sendMessage(
-      chatId: chatId,
-      text: messageController.text.trim(),
-    );
-
-    // Clear input
-    messageController.clear();
-
-    // Reload messages
-    _loadMessages();
-
-    // Update local chat object
-    final updatedChat = getChatById(chatId);
-    if (updatedChat != null) {
-      setState(() {
-        chat = updatedChat;
-      });
-    }
-
-    // Scroll to bottom
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && messages.isNotEmpty) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -93,6 +88,40 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         );
       }
     });
+  }
+
+  void _sendMessage() {
+    final messageText = messageController.text.trim();
+    if (messageText.isEmpty) return;
+
+    sendMessage(
+      chatId: chatId,
+      text: messageText,
+    );
+
+    messageController.clear();
+    _loadMessages();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToBottom();
+    });
+  }
+
+  String getOtherUserName() {
+    final otherUserId = chat.getOtherParticipant(currentUserId);
+    final user = getUserByEmail(otherUserId);
+    return user?['name'] ?? otherUserId.split('@').first;
+  }
+
+  String getOtherUserPhoto() {
+    final otherUserId = chat.getOtherParticipant(currentUserId);
+    final user = getUserByEmail(otherUserId);
+    return user?['photo'] as String? ?? '';
+  }
+
+  String getOtherUserFirstLetter() {
+    final name = getOtherUserName();
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 
   @override
@@ -104,36 +133,46 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final otherUserName = getOtherUserName();
+    final otherUserPhoto = getOtherUserPhoto();
+    final otherUserFirstLetter = getOtherUserFirstLetter();
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Row(
           children: [
-            CircleAvatar(
+            otherUserPhoto.isNotEmpty
+                ? CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              backgroundImage: chat.userPhoto.isNotEmpty
-                  ? NetworkImage(chat.userPhoto)
-                  : null,
-              child: chat.userPhoto.isEmpty
-                  ? Text(
-                chat.userName.isNotEmpty
-                    ? chat.userName[0].toUpperCase()
-                    : '?',
+              backgroundImage: NetworkImage(otherUserPhoto),
+              onBackgroundImageError: (_, __) {},
+            )
+                : CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              child: Text(
+                otherUserFirstLetter,
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),
-              )
-                  : null,
+              ),
             ),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  chat.userName,
+                  otherUserName,
                   style: AppTextStyles.bodyLarge.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -158,17 +197,9 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
                 _showReportDialog();
               } else if (value == 'block') {
                 _showBlockDialog();
-              } else if (value == 'ride_details') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ride details coming soon')),
-                );
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'ride_details',
-                child: Text('View Ride Details'),
-              ),
               const PopupMenuItem(
                 value: 'report',
                 child: Text('Report User'),
@@ -183,7 +214,6 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
       ),
       body: Column(
         children: [
-          // Messages
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -191,12 +221,11 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               itemCount: messages.length,
               itemBuilder: (context, index) {
                 final message = messages[index];
-                return _buildMessageBubble(message);
+                final isMe = message.senderId == currentUserId;
+                return _buildMessageBubble(message, isMe);
               },
             ),
           ),
-
-          // Input Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -256,9 +285,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(MessageModel message) {
-    final isMe = message.isMe;
-
+  Widget _buildMessageBubble(MessageModel message, bool isMe) {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -292,7 +319,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  message.timestamp,
+                  _formatTimeForDisplay(message.timestamp),
                   style: TextStyle(
                     color: isMe ? Colors.white70 : AppColors.textHint,
                     fontSize: 10,
@@ -312,6 +339,24 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
         ),
       ),
     );
+  }
+
+  String _formatTimeForDisplay(String timestamp) {
+    if (timestamp.contains(' ')) {
+      final parts = timestamp.split(' ');
+      if (parts.length >= 2) {
+        final timeParts = parts[1].split(':');
+        if (timeParts.length >= 2) {
+          int hour = int.parse(timeParts[0]);
+          final minute = timeParts[1];
+          final amPm = hour >= 12 ? 'PM' : 'AM';
+          hour = hour % 12;
+          if (hour == 0) hour = 12;
+          return '$hour:$minute $amPm';
+        }
+      }
+    }
+    return timestamp;
   }
 
   void _showReportDialog() {
@@ -354,7 +399,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              Navigator.pop(context, true); // Return true to refresh chat list
+              Navigator.pop(context, true);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('User blocked successfully')),
               );
