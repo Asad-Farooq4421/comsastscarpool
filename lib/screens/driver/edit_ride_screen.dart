@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../models/ride_model.dart';
 import '../../data/dummy_rides.dart';
@@ -74,7 +73,7 @@ class _EditRideScreenState extends State<EditRideScreen> {
         );
         
         setState(() {
-          dummyRides[index] = updatedRide;
+          updateRide(updatedRide);
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -117,7 +116,7 @@ class _EditRideScreenState extends State<EditRideScreen> {
 
   void _cancelRide() {
     setState(() {
-      dummyRides.removeWhere((r) => r.rideId == ride.rideId);
+      deleteRide(ride.rideId);
     });
 
     ScaffoldMessenger.of(context).showSnackBar(

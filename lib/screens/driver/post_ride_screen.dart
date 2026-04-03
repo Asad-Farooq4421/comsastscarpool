@@ -81,7 +81,6 @@ class _PostRideScreenState extends State<PostRideScreen> {
   }
 
   void _saveAndPostRide() {
-    // Create new ride object with current user's data
     final currentUserEmail = getCurrentUserId();
     final currentUserName = getCurrentUserName();
     final currentUserData = getCurrentUser();
@@ -110,15 +109,14 @@ class _PostRideScreenState extends State<PostRideScreen> {
       passengers: [],
     );
 
-    // Save to global dummy rides list
     addNewRide(newRide);
 
-    // Show success screen
+    // Show success screen instead of direct pop
     setState(() {
-      currentStep = 5;
+      currentStep = 5;  // Go to success screen
     });
 
-    // Auto navigate to driver home after 2 seconds
+    // Auto navigate back to driver home after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         // Reset form data
@@ -126,8 +124,8 @@ class _PostRideScreenState extends State<PostRideScreen> {
           currentStep = 1;
           formData.updateAll((key, value) => '');
         });
-        // Navigate to driver home
-        Navigator.popUntil(context, (route) => route.isFirst);
+        // Go back with refresh flag
+        Navigator.pop(context, true);
       }
     });
   }

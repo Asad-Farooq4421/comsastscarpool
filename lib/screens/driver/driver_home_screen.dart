@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../models/user_model.dart';
+import '../../models/ride_model.dart';
 import '../../widgets/role_toggle.dart';
 import '../../utils/routes.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../data/dummy_rides.dart';
+import '../../data/dummy_users.dart';
 import '../../widgets/driver_ride_card.dart';
-
 
 class DriverHomeScreen extends StatefulWidget {
   final VoidCallback onSwitch;
@@ -23,17 +23,38 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   UserRole selectedRole = UserRole.driver;
 
+  // ✅ FIXED: Use current logged-in user's email
+  List<Ride> get driverRides {
+    final currentDriverEmail = getCurrentUserId();
+    return getRidesByDriverEmail(currentDriverEmail);
+  }
+
+  // ✅ Calculate total earnings
+  int get totalEarnings {
+    int earnings = 0;
+    for (var ride in driverRides) {
+      final filledSeats = ride.totalSeats - ride.availableSeats;
+      earnings += filledSeats * ride.price;
+    }
+    return earnings;
+  }
+
+  // ✅ Get driver rating from current user
+  double get driverRating {
+    final currentUser = getCurrentUser();
+    return double.parse(currentUser?['driverRating'] ?? '0.0');
+  }
+
   @override
   Widget build(BuildContext context) {
-    // For demo purposes, we'll filter dummyRides for a specific driverId
-    final driverRides = getRidesByDriverId('driver1');
+    final rides = driverRides;
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 🏷️ Header with Stats (Updated colors to match Passenger screen)
+            // Header with Stats
             Container(
               width: double.infinity,
               decoration: const BoxDecoration(
@@ -90,8 +111,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  
-                  // 🔘 Role Toggle
+
+                  // Role Toggle
                   Center(
                     child: RoleToggle(
                       selectedRole: selectedRole,
@@ -102,16 +123,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       },
                     ),
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
-                  // 📊 Stats Row
+
+                  // ✅ Dynamic Stats (based on current user's rides)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildStatItem('12', 'Total Rides'),
-                      _buildStatItem('4.8', 'Rating'),
-                      _buildStatItem('Rs. 2400', 'Earnings'),
+                      _buildStatItem(rides.length.toString(), 'Total Rides'),
+                      _buildStatItem(driverRating.toString(), 'Rating'),
+                      _buildStatItem('Rs. $totalEarnings', 'Earnings'),
                     ],
                   ),
                 ],
@@ -120,7 +141,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
             const SizedBox(height: 24),
 
-            // 🧾 My Posted Rides Section
+            // My Posted Rides Section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
@@ -149,19 +170,40 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
-                  // 🚗 Ride Cards List
-                  ListView.builder(
+
+                  // Ride Cards List
+                  rides.isEmpty
+                      ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        children: [
+                          Icon(Icons.directions_car, size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No rides posted yet',
+                            style: AppTextStyles.bodyLarge.copyWith(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Tap "Post Ride" to share your first ride',
+                            style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                      : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: driverRides.length,
+                    itemCount: rides.length,
                     itemBuilder: (context, index) {
-                      final ride = driverRides[index];
+                      final ride = rides[index];
                       return DriverRideCard(
                         ride: ride,
                         onViewRequests: () {
                           Navigator.pushNamed(context, AppRoutes.rideRequests, arguments: ride).then((value) {
-                             setState(() {});
+                            if (value == true) setState(() {});
                           });
                         },
                         onEdit: () {
@@ -170,7 +212,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                           });
                         },
                         onDelete: () {
-                          // Show delete confirmation
                           _showDeleteConfirmation(context, ride.rideId);
                         },
                       );
@@ -182,7 +223,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ],
         ),
       ),
-
     );
   }
 
@@ -211,9 +251,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              setState(() {
-                dummyRides.removeWhere((r) => r.rideId == rideId);
-              });
+              deleteRide(rideId);
+              setState(() {});
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Ride deleted successfully'), backgroundColor: Colors.red),

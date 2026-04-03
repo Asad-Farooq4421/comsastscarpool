@@ -14,11 +14,13 @@ class RideRequestsInboxScreen extends StatefulWidget {
 
 class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
   late Ride ride;
+  int currentPendingCount = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     ride = ModalRoute.of(context)!.settings.arguments as Ride;
+    currentPendingCount = ride.pendingRequests;
   }
 
   @override
@@ -33,14 +35,14 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
           children: [
             const Text('Ride Requests'),
             Text(
-              '${pendingPassengers.length} pending',
+              '$currentPendingCount pending',
               style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(context, true), // Return true to refresh
         ),
       ),
       body: Column(
@@ -119,22 +121,22 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
             child: pendingPassengers.isEmpty
                 ? const Center(child: Text('No pending requests'))
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: pendingPassengers.length,
-                    itemBuilder: (context, index) {
-                      final passengerInfo = pendingPassengers[index];
-                      final userData = dummyUsers.firstWhere(
-                        (u) => u['name'] == passengerInfo.name, 
-                        orElse: () => dummyUsers[0],
-                      );
-                      
-                      return _buildRequestCard(passengerInfo, userData);
-                    },
-                  ),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              itemCount: pendingPassengers.length,
+              itemBuilder: (context, index) {
+                final passengerInfo = pendingPassengers[index];
+                final userData = dummyUsers.firstWhere(
+                      (u) => u['name'] == passengerInfo.name,
+                  orElse: () => dummyUsers[0],
+                );
+
+                return _buildRequestCard(passengerInfo, userData);
+              },
+            ),
           ),
         ],
       ),
-      
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: 1,
         type: BottomNavigationBarType.fixed,
@@ -150,6 +152,8 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
   }
 
   Widget _buildRequestCard(PassengerInfo passenger, Map<String, dynamic> userData) {
+    final bool isSeatsAvailable = ride.availableSeats > 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -211,7 +215,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
               Expanded(
                 flex: 2,
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _showPassengerProfile(userData),
                   icon: const Icon(Icons.visibility_outlined, size: 18),
                   label: const Text('View Profile'),
                   style: OutlinedButton.styleFrom(
@@ -226,11 +230,11 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
               Expanded(
                 flex: 3,
                 child: ElevatedButton.icon(
-                  onPressed: ride.availableSeats > 0 
-                      ? () => _handleRequest(passenger.userId, true)
-                      : null, // Disable if no seats left
+                  onPressed: (isSeatsAvailable && currentPendingCount > 0)
+                      ? () => _handleRequest(passenger, true)
+                      : null,
                   icon: const Icon(Icons.check, size: 18),
-                  label: Text(ride.availableSeats > 0 ? 'Accept' : 'Full'),
+                  label: Text(!isSeatsAvailable ? 'Full' : 'Accept'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -248,7 +252,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
                   border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                 ),
                 child: IconButton(
-                  onPressed: () => _handleRequest(passenger.userId, false),
+                  onPressed: () => _handleRequest(passenger, false),
                   icon: const Icon(Icons.close, color: Colors.red, size: 20),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   constraints: const BoxConstraints(),
@@ -261,49 +265,114 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
     );
   }
 
-  void _handleRequest(String passengerId, bool accept) {
-    // 1. Logic to update global dummy data and local state
+  void _handleRequest(PassengerInfo passenger, bool accept) {
     final rideIndex = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
-    
+
     if (rideIndex != -1) {
       setState(() {
-        List<PassengerInfo> updatedPassengers = List.from(ride.passengers);
-        int passengerIndex = updatedPassengers.indexWhere((p) => p.userId == passengerId);
-        
+        // Get current ride from dummyRides
+        Ride currentRide = dummyRides[rideIndex];
+
+        // Update passengers list
+        List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
+        int passengerIndex = updatedPassengers.indexWhere((p) => p.userId == passenger.userId);
+
         if (passengerIndex != -1) {
-          if (accept && ride.availableSeats > 0) {
+          if (accept && currentRide.availableSeats > 0) {
             // ACCEPT LOGIC
-            // Update passenger status
-            updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(status: 'accepted');
-            
-            // Decrease available seats globally and locally
-            int newAvailableSeats = ride.availableSeats - 1;
-            
-            ride = ride.copyWith(
-              availableSeats: newAvailableSeats,
-              passengers: updatedPassengers,
+            updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(
+                status: 'accepted'
             );
-            
+
+            // Update ride with new values
+            currentRide = currentRide.copyWith(
+              availableSeats: currentRide.availableSeats - 1,
+              passengers: updatedPassengers,
+              pendingRequests: currentRide.pendingRequests - 1,
+            );
+
             // Persist to dummyRides
-            dummyRides[rideIndex] = ride;
-          } else {
+            dummyRides[rideIndex] = currentRide;
+
+            // Update local state
+            ride = currentRide;
+            currentPendingCount = ride.pendingRequests;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Passenger Accepted! Seats decreased.'),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          } else if (!accept) {
             // DECLINE LOGIC
-            updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(status: 'declined');
-            
-            ride = ride.copyWith(passengers: updatedPassengers);
-            dummyRides[rideIndex] = ride;
+            updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(
+                status: 'declined'
+            );
+
+            // Update ride with new values (seats unchanged)
+            currentRide = currentRide.copyWith(
+              passengers: updatedPassengers,
+              pendingRequests: currentRide.pendingRequests - 1,
+            );
+
+            // Persist to dummyRides
+            dummyRides[rideIndex] = currentRide;
+
+            // Update local state
+            ride = currentRide;
+            currentPendingCount = ride.pendingRequests;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Request Declined'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 2),
+              ),
+            );
           }
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(accept ? 'Passenger Accepted! Seats decreased.' : 'Request Declined'),
-          backgroundColor: accept ? Colors.green : Colors.red,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      // If no pending requests left, go back after 1 second
+      if (currentPendingCount == 0) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            Navigator.pop(context, true);
+          }
+        });
+      }
     }
+  }
+
+  void _showPassengerProfile(Map<String, dynamic> userData) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(userData['name']),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('📞 ${userData['phone']}'),
+            const SizedBox(height: 8),
+            Text('⭐ Rating: ${userData['passengerRating']}'),
+            const SizedBox(height: 8),
+            Text('🚗 Rides taken: ${userData['ridesAsPassenger']}'),
+            const SizedBox(height: 8),
+            Text('📧 ${userData['email']}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
