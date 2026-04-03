@@ -30,21 +30,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   void _loadChats() {
-    // Recalculate unread counts from messages and update dummyChats list
-    for (int i = 0; i < dummyChats.length; i++) {
-      final chat = dummyChats[i];
-      final unreadCount = dummyMessages.where((msg) =>
-          msg.chatId == chat.id &&
-          !msg.isMe &&
-          !msg.isRead
-      ).length;
-      
-      // Update in dummyChats list using copyWith since fields are final
-      dummyChats[i] = chat.copyWith(unread: unreadCount);
+    // Get only current user's chats
+    final currentUserChats = getCurrentUserChats();
+
+    // Update unread counts for each chat
+    for (int i = 0; i < currentUserChats.length; i++) {
+      final chat = currentUserChats[i];
+      final unreadCount = getUnreadCountForChat(chat.id);
+
+      // Update unread count in the chat object
+      if (chat.unread != unreadCount) {
+        final chatIndex = dummyChats.indexWhere((c) => c.id == chat.id);
+        if (chatIndex != -1) {
+          dummyChats[chatIndex] = chat.copyWith(unread: unreadCount);
+        }
+      }
     }
-    
+
     setState(() {
-      chats = List.from(dummyChats);
+      // Get fresh list after updates
+      chats = List.from(getCurrentUserChats());
     });
   }
 
@@ -105,7 +110,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ],
       ),
-
     );
   }
 
@@ -141,28 +145,35 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget _buildChatCard(BuildContext context, ChatModel chat) {
     return InkWell(
       onTap: () async {
+        // Reset unread count when opening chat
+        resetUnreadCount(chat.id);
+
         // Navigate to individual chat
         final result = await Navigator.pushNamed(
           context,
           AppRoutes.individualChat,
-          arguments: chat, // Pass the chat object
+          arguments: chat.id, // Pass chat ID instead of full object
         );
 
         // Refresh chat list when coming back
-        _loadChats();
+        if (result == true) {
+          _loadChats();
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // Profile Photo with Unread Badge (ONLY HERE - on profile circle)
+            // Profile Photo with Unread Badge
             Stack(
               children: [
                 CircleAvatar(
                   radius: 28,
                   backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                  backgroundImage: chat.userPhoto.isNotEmpty ? NetworkImage(chat.userPhoto) : null,
-                  onBackgroundImageError: (_, ___) {}, // Fixed multiple underscores
+                  backgroundImage: chat.userPhoto.isNotEmpty
+                      ? NetworkImage(chat.userPhoto)
+                      : null,
+                  onBackgroundImageError: (_, _) {},
                   child: chat.userPhoto.isEmpty
                       ? Text(
                     chat.userName[0].toUpperCase(),
@@ -174,7 +185,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   )
                       : null,
                 ),
-                // 🔴 Unread Badge - ONLY on profile circle
+                // Unread Badge - ONLY on profile circle
                 if (chat.unread > 0)
                   Positioned(
                     right: 0,
@@ -233,7 +244,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          chat.lastMessage,
+                          chat.lastMessage.isEmpty
+                              ? 'No messages yet'
+                              : chat.lastMessage,
                           style: AppTextStyles.bodyMedium.copyWith(
                             color: chat.unread > 0
                                 ? AppColors.textPrimary

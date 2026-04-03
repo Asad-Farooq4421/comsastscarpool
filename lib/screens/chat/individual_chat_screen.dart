@@ -7,7 +7,6 @@ import '../../data/dummy_users.dart';
 import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
 
-
 class IndividualChatScreen extends StatefulWidget {
   const IndividualChatScreen({super.key});
 
@@ -21,92 +20,68 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
   List<MessageModel> messages = [];
   final TextEditingController messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final currentUser = getCurrentUser();
+
+  String get currentUserId => getCurrentUserId();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Get chat ID from route arguments
-    chatId = (ModalRoute.of(context)!.settings.arguments as ChatModel).id;
-    // Find chat object from dummyChats to ensure we have the mutable version if needed
+
+    // Get chat ID from route arguments (now it's a String, not ChatModel)
+    chatId = ModalRoute.of(context)!.settings.arguments as String;
+
+    // Find chat object from dummyChats
     chat = dummyChats.firstWhere((c) => c.id == chatId);
-    // Filter messages for this chat
-    messages = dummyMessages
-        .where((msg) => msg.chatId == chatId)
-        .toList();
+
+    // Load messages for this chat using the function
+    _loadMessages();
 
     // Mark messages as read when chat opens
     _markMessagesAsRead();
   }
 
-  @override
-  void dispose() {
-    messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
+  void _loadMessages() {
+    setState(() {
+      messages = getMessagesForChat(chatId);
+    });
   }
 
   void _markMessagesAsRead() {
-    bool updated = false;
+    // Use the function from dummy_messages.dart
+    markMessagesAsRead(chatId);
 
-    // Mark all unread messages from other user as read in dummyMessages
-    for (int i = 0; i < dummyMessages.length; i++) {
-      if (dummyMessages[i].chatId == chatId &&
-          !dummyMessages[i].isMe &&
-          !dummyMessages[i].isRead) {
-        dummyMessages[i] = dummyMessages[i].copyWith(isRead: true);
-        updated = true;
-      }
-    }
+    // Update local messages list to reflect read status
+    _loadMessages();
 
-    // Also update local messages list
-    for (int i = 0; i < messages.length; i++) {
-      if (!messages[i].isMe && !messages[i].isRead) {
-        messages[i] = messages[i].copyWith(isRead: true);
-        updated = true;
-      }
-    }
-
-    // Update unread count in dummyChats to 0
-    final index = dummyChats.indexWhere((c) => c.id == chatId);
-    if (index != -1 && dummyChats[index].unread > 0) {
-      dummyChats[index] = dummyChats[index].copyWith(unread: 0);
-      chat = dummyChats[index];
-      updated = true;
-    }
-
-    if (updated) {
-      setState(() {});
+    // Update local chat object
+    final updatedChat = getChatById(chatId);
+    if (updatedChat != null) {
+      chat = updatedChat;
     }
   }
 
   void _sendMessage() {
     if (messageController.text.trim().isEmpty) return;
 
-    final newMessage = MessageModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    // Use the function from dummy_messages.dart
+    sendMessage(
       chatId: chatId,
-      senderId: currentUser?['email'] ?? "unknown_user",
       text: messageController.text.trim(),
-      timestamp: _getFormattedTime(),
-      isRead: false,
-      isMe: true,
     );
 
-    setState(() {
-      messages.add(newMessage);
-      dummyMessages.add(newMessage);
-      messageController.clear();
+    // Clear input
+    messageController.clear();
 
-      // Update last message in dummyChats
-      final chatIndex = dummyChats.indexWhere((c) => c.id == chatId);
-      if (chatIndex != -1) {
-        dummyChats[chatIndex] = dummyChats[chatIndex].copyWith(
-          lastMessage: newMessage.text,
-          timestamp: _getFormattedTime(),
-        );
-      }
-    });
+    // Reload messages
+    _loadMessages();
+
+    // Update local chat object
+    final updatedChat = getChatById(chatId);
+    if (updatedChat != null) {
+      setState(() {
+        chat = updatedChat;
+      });
+    }
 
     // Scroll to bottom
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -120,12 +95,11 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     });
   }
 
-  String _getFormattedTime() {
-    final now = DateTime.now();
-    final hour = now.hour % 12 == 0 ? 12 : now.hour % 12;
-    final minute = now.minute.toString().padLeft(2, '0');
-    final ampm = now.hour >= 12 ? 'PM' : 'AM';
-    return '$hour:$minute $ampm';
+  @override
+  void dispose() {
+    messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -138,10 +112,14 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
             CircleAvatar(
               radius: 18,
               backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              backgroundImage: chat.userPhoto.isNotEmpty ? NetworkImage(chat.userPhoto) : null,
+              backgroundImage: chat.userPhoto.isNotEmpty
+                  ? NetworkImage(chat.userPhoto)
+                  : null,
               child: chat.userPhoto.isEmpty
                   ? Text(
-                chat.userName.isNotEmpty ? chat.userName[0].toUpperCase() : '?',
+                chat.userName.isNotEmpty
+                    ? chat.userName[0].toUpperCase()
+                    : '?',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,

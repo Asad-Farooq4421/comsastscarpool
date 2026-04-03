@@ -5,7 +5,7 @@ class ChatModel {
   final String userPhoto;
   final String lastMessage;
   final String timestamp;
-  final int unread;
+  int unread;
   final String rideId;
 
   ChatModel({
