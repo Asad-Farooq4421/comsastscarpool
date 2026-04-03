@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../widgets/custom_button.dart';
-import '../../utils/routes.dart';
+import '../../data/dummy_rides.dart';
+import '../../data/dummy_users.dart';
+import '../../models/ride_model.dart';
 
 class PostRideScreen extends StatefulWidget {
   const PostRideScreen({super.key});
@@ -78,6 +80,58 @@ class _PostRideScreenState extends State<PostRideScreen> {
     );
   }
 
+  void _saveAndPostRide() {
+    // Create new ride object with current user's data
+    final currentUserEmail = getCurrentUserId();
+    final currentUserName = getCurrentUserName();
+    final currentUserData = getCurrentUser();
+
+    if (currentUserEmail.isEmpty) {
+      _showErrorSnackbar('User not logged in');
+      return;
+    }
+
+    final newRide = Ride(
+      rideId: DateTime.now().millisecondsSinceEpoch.toString(),
+      driverId: currentUserEmail,
+      driverName: currentUserName,
+      driverPhoto: '',
+      driverRating: double.parse(currentUserData?['driverRating'] ?? '0.0'),
+      from: formData['from']!.trim(),
+      destination: formData['to']!.trim(),
+      date: formData['date']!.trim(),
+      time: formData['time']!.trim(),
+      totalSeats: int.parse(formData['seats']!),
+      availableSeats: int.parse(formData['seats']!),
+      price: int.parse(formData['price']!),
+      status: 'scheduled',
+      notes: formData['notes']!.trim(),
+      pendingRequests: 0,
+      passengers: [],
+    );
+
+    // Save to global dummy rides list
+    addNewRide(newRide);
+
+    // Show success screen
+    setState(() {
+      currentStep = 5;
+    });
+
+    // Auto navigate to driver home after 2 seconds
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        // Reset form data
+        setState(() {
+          currentStep = 1;
+          formData.updateAll((key, value) => '');
+        });
+        // Navigate to driver home
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    });
+  }
+
   void nextStep() {
     // Validate current step before proceeding
     bool isValid = false;
@@ -93,12 +147,12 @@ class _PostRideScreenState extends State<PostRideScreen> {
         isValid = _isStep3Valid();
         break;
       case 4:
-        isValid = true; // Step 4 has no required fields
+        isValid = true;
         break;
     }
 
     if (!isValid) {
-      return; // Don't proceed if validation fails
+      return;
     }
 
     if (currentStep < 4) {
@@ -106,12 +160,9 @@ class _PostRideScreenState extends State<PostRideScreen> {
         currentStep++;
       });
     } else {
-      // Final validation before posting ride
+      // FINAL STEP: Save the ride
       if (_isStep1Valid() && _isStep2Valid() && _isStep3Valid()) {
-        // Submit and show success
-        setState(() {
-          currentStep = 5;
-        });
+        _saveAndPostRide();
       }
     }
   }
@@ -126,21 +177,6 @@ class _PostRideScreenState extends State<PostRideScreen> {
     }
   }
 
-  void resetAndGoBack() {
-    setState(() {
-      currentStep = 1;
-      formData.updateAll((key, value) => '');
-    });
-    Navigator.pushReplacementNamed(context, AppRoutes.driverHome);
-  }
-
-  void postAnotherRide() {
-    setState(() {
-      currentStep = 1;
-      formData.updateAll((key, value) => '');
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     // Success Screen (Step 5)
@@ -148,12 +184,13 @@ class _PostRideScreenState extends State<PostRideScreen> {
       return Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-          child: Padding(
+          child: Center(
+            child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Spacer(),
                 Container(
                   width: 96,
                   height: 96,
@@ -175,28 +212,28 @@ class _PostRideScreenState extends State<PostRideScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Your ride has been posted successfully. You\'ll be notified when passengers send requests.',
+                  'Your ride has been posted successfully. Redirecting to dashboard...',
                   style: AppTextStyles.bodyMedium.copyWith(
                     color: AppColors.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-                const Spacer(),
-                CustomButton(
-                  text: 'Back to Dashboard',
-                  onPressed: resetAndGoBack,
+                const CircularProgressIndicator(
+                  color: AppColors.primary,
                 ),
-                const SizedBox(height: 12),
-                CustomButton(
-                  text: 'Post Another Ride',
-                  onPressed: postAnotherRide,
-                  isOutlined: true,
+                const SizedBox(height: 16),
+                Text(
+                  'Please wait...',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textHint,
+                  ),
                 ),
               ],
             ),
           ),
         ),
+      ),
       );
     }
 
@@ -322,7 +359,6 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 32),
 
-        // From field
         Text(
           'From *',
           style: AppTextStyles.inputLabel,
@@ -351,7 +387,6 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 20),
 
-        // To field
         Text(
           'To *',
           style: AppTextStyles.inputLabel,
@@ -442,34 +477,48 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Time picker
+        // TIME PICKER (Clock) - Updated
         Text(
           'Time *',
           style: AppTextStyles.inputLabel,
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: formData['time']!.isEmpty ? null : formData['time'],
-          hint: Text('Select time', style: AppTextStyles.inputHint),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          ),
-          items: [
-            '07:00 AM', '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM',
-            '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM',
-            '05:00 PM', '06:00 PM'
-          ].map((time) {
-            return DropdownMenuItem(value: time, child: Text(time));
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              formData['time'] = value!;
-            });
+        InkWell(
+          onTap: () async {
+            TimeOfDay? pickedTime = await showTimePicker(
+              context: context,
+              initialTime: TimeOfDay.now(),
+            );
+            if (pickedTime != null) {
+              setState(() {
+                // Format time like: 09:30 AM
+                final hour = pickedTime.hourOfPeriod;
+                final minute = pickedTime.minute.toString().padLeft(2, '0');
+                final period = pickedTime.period == DayPeriod.am ? 'AM' : 'PM';
+                formData['time'] = '$hour:$minute $period';
+              });
+            }
           },
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                const Icon(Icons.access_time, size: 20, color: Colors.grey),
+                const SizedBox(width: 12),
+                Text(
+                  formData['time']!.isEmpty ? 'Select time' : formData['time']!,
+                  style: TextStyle(
+                    color: formData['time']!.isEmpty ? Colors.grey : Colors.black,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -499,7 +548,7 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: formData['seats']!.isEmpty ? null : formData['seats'],
+          initialValue: formData['seats']!.isEmpty ? null : formData['seats'],
           hint: Text('How many seats?', style: AppTextStyles.inputHint),
           decoration: InputDecoration(
             border: OutlineInputBorder(
@@ -581,7 +630,6 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 32),
 
-        // Notes text field
         Text(
           'Notes (Optional)',
           style: AppTextStyles.inputLabel,
@@ -610,7 +658,6 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Ride Summary
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

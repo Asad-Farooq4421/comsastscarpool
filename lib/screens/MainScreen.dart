@@ -2,6 +2,7 @@ import 'package:comsastscarpool/screens/passenger/ride_details_screen.dart';
 import 'package:comsastscarpool/screens/passenger/search_rides_screen.dart';
 import 'package:comsastscarpool/screens/profile/profile_screen.dart';
 import 'package:comsastscarpool/screens/passenger/my_rides.dart';
+import 'package:comsastscarpool/screens/driver/my_posted_rides_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../data/dummy_rides.dart';

@@ -30,4 +30,6 @@ class AppRoutes {
   // Chat routes
   static const String chatList = '/chat-list';
   static const String individualChat = '/individual-chat';
+
+
 }

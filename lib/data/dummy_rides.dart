@@ -3,8 +3,8 @@ import '../models/ride_model.dart';
 final List<Ride> dummyRides = [
   Ride(
     rideId: '1',
-    driverId: 'driver1',
-    driverName: 'Ali',
+    driverId: 'ali@isbstudent.comsats.edu.pk',  // ✅ Changed
+    driverName: 'Ali Khan',
     driverPhoto: '',
     driverRating: 4.8,
     from: 'University Main Gate',
@@ -24,8 +24,8 @@ final List<Ride> dummyRides = [
   ),
   Ride(
     rideId: '2',
-    driverId: 'driver1',
-    driverName: 'Ali',
+    driverId: 'ali@isbstudent.comsats.edu.pk',  // ✅ Changed
+    driverName: 'Ali Khan',
     driverPhoto: '',
     driverRating: 4.8,
     from: 'Hostel Block B',
@@ -42,8 +42,8 @@ final List<Ride> dummyRides = [
   ),
   Ride(
     rideId: '3',
-    driverId: 'driver2',
-    driverName: 'Asim',
+    driverId: 'ahmed@isbstudent.comsats.edu.pk',  // ✅ Changed
+    driverName: 'Ahmed Raza',
     driverPhoto: '',
     driverRating: 4.5,
     from: 'University Library',
@@ -62,8 +62,8 @@ final List<Ride> dummyRides = [
   ),
   Ride(
     rideId: '4',
-    driverId: 'driver3',
-    driverName: 'Ahmed',
+    driverId: 'ahmed@isbstudent.comsats.edu.pk',  // ✅ Changed
+    driverName: 'Ahmed Raza',
     driverPhoto: '',
     driverRating: 4.2,
     from: 'COMSATS Gate',
@@ -83,8 +83,8 @@ final List<Ride> dummyRides = [
   ),
   Ride(
     rideId: '5',
-    driverId: 'driver4',
-    driverName: 'Sara',
+    driverId: 'sara@isbstudent.comsats.edu.pk',  // ✅ Changed
+    driverName: 'Sara Ahmed',
     driverPhoto: '',
     driverRating: 4.9,
     from: 'Girls Hostel',
@@ -104,12 +104,11 @@ final List<Ride> dummyRides = [
   ),
 ];
 
-// Helper function to get rides by driver ID
+// Helper functions
 List<Ride> getRidesByDriverId(String driverId) {
   return dummyRides.where((ride) => ride.driverId == driverId).toList();
 }
 
-// Helper function to get ride by ID
 Ride? getRideById(String rideId) {
   try {
     return dummyRides.firstWhere((ride) => ride.rideId == rideId);
@@ -117,6 +116,47 @@ Ride? getRideById(String rideId) {
     return null;
   }
 }
+
 List<Ride> getRidesByDriverEmail(String driverEmail) {
   return dummyRides.where((ride) => ride.driverId == driverEmail).toList();
+}
+
+void addNewRide(Ride newRide) {
+  dummyRides.add(newRide);
+}
+
+void updateRide(Ride updatedRide) {
+  final index = dummyRides.indexWhere((r) => r.rideId == updatedRide.rideId);
+  if (index != -1) {
+    dummyRides[index] = updatedRide;
+  }
+}
+
+void deleteRide(String rideId) {
+  dummyRides.removeWhere((r) => r.rideId == rideId);
+}
+
+void updateAvailableSeats(String rideId, int newAvailableSeats) {
+  final index = dummyRides.indexWhere((r) => r.rideId == rideId);
+  if (index != -1) {
+    final updatedRide = dummyRides[index].copyWith(availableSeats: newAvailableSeats);
+    dummyRides[index] = updatedRide;
+  }
+}
+
+void updatePassengerStatus(String rideId, String passengerName, String newStatus) {
+  final index = dummyRides.indexWhere((r) => r.rideId == rideId);
+  if (index != -1) {
+    final passengerIndex = dummyRides[index].passengers.indexWhere((p) => p.name == passengerName);
+    if (passengerIndex != -1) {
+      final updatedPassengers = List<PassengerInfo>.from(dummyRides[index].passengers);
+      updatedPassengers[passengerIndex] = PassengerInfo(
+        userId: updatedPassengers[passengerIndex].userId,
+        name: updatedPassengers[passengerIndex].name,
+        status: newStatus,
+      );
+      final updatedRide = dummyRides[index].copyWith(passengers: updatedPassengers);
+      dummyRides[index] = updatedRide;
+    }
+  }
 }

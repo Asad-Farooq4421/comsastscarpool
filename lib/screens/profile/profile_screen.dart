@@ -5,6 +5,8 @@ import '../../utils/routes.dart';
 import '../../widgets/custom_button.dart';
 import '../../data/dummy_users.dart';
 import '../passenger/my_requests_screen.dart';
+import '../driver/my_posted_rides_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -502,6 +504,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(width: 16),
                 _buildStatCard('Earnings', '₨${_user['earnings'] ?? '0'}', Icons.money),
               ],
+            ),
+            const SizedBox(height: 16),
+            // My Posted Rides Button
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.background,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.directions_car, color: AppColors.primary),
+                title: const Text('My Posted Rides'),
+                subtitle: const Text('View and manage your rides'),
+                trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const MyPostedRidesScreen()),
+                    );
+                  },
+              ),
             ),
           ],
         ),
