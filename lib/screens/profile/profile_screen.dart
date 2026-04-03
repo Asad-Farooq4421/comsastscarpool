@@ -19,6 +19,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic> _user = {}; // Initialize as empty map, not nullable
   bool _isEditing = false;
   bool _isDriver = false;
+  bool _pendingDriverSwitch = false;
+  bool _hasShownDriverPopup = false;
 
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -59,6 +61,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+// ==================== ADD THIS METHOD HERE ====================
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Check if we should open edit mode (coming from search screen)
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args == 'openEditMode' && !_isEditing && !_isDriver) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _isEditing = true;
+        });
+        // Show a message to guide the user
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please add your vehicle details to become a driver'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      });
+    }
+  }
+// =============================================================
+
+  void _showDriverModeDialog() {
+    // Mark that popup has been shown
+    _hasShownDriverPopup = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.directions_car, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Become a Driver?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('To start offering rides as a driver, you need to provide:'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Vehicle type (Car/Bike)'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Vehicle model'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Color & License plate'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                const SizedBox(width: 8),
+                const Text('Number of seats'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You can edit these details anytime from your profile.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Not Now'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('Yes, Continue'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      if (confirmed == true) {
+        setState(() {
+          _isDriver = true;
+          _isEditing = true;  // Open edit mode to fill vehicle details
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -73,6 +183,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildModeSwitch() {
+    // Get current user to check if they are already a driver
+    final currentUser = getCurrentUser();
+    final isAlreadyDriver = currentUser?['isDriver'] ?? false;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -83,11 +197,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Passenger Mode
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isDriver = false;
-              });
+              // Switching to Passenger - direct, no popup needed
+              if (_isDriver) {
+                setState(() {
+                  _isDriver = false;
+                });
+              }
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -114,11 +232,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
+          // Driver Mode
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isDriver = true;
-              });
+              if (!_isDriver) {
+                // Check if user is already a driver in database
+                if (isAlreadyDriver) {
+                  // Already a driver - switch directly without popup
+                  setState(() {
+                    _isDriver = true;
+                  });
+                } else {
+                  // Not a driver yet - check if popup already shown
+                  if (!_hasShownDriverPopup) {
+                    _showDriverModeDialog();
+                  } else {
+                    // Popup already shown before, just switch
+                    setState(() {
+                      _isDriver = true;
+                      _isEditing = true;
+                    });
+                  }
+                }
+              }
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -232,6 +368,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: _toggleEdit,
             ),
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: 3,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+        onTap: (index) {
+          if (index == 0) {
+            Navigator.pushReplacementNamed(context, AppRoutes.driverHome);
+          } else if (index == 1) {
+            Navigator.pushReplacementNamed(context, AppRoutes.searchRides);
+          } else if (index == 2) {
+            Navigator.pushReplacementNamed(context, AppRoutes.chatList);
+          }
+        },
       ),
       body: SingleChildScrollView(
         child: Column(
