@@ -5,8 +5,8 @@ import '../../models/chat_model.dart';
 import '../../models/ride_model.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-// import '../../widgets/app_bottom_nav.dart';
-// import '../../data/dummy_rides.dart';
+import '../../widgets/app_bottom_nav.dart';
+import '../../data/dummy_rides.dart';
 import '../../data/ride_requests.dart';
 import '../chat/individual_chat_screen.dart'; // for currentUser
 
@@ -269,6 +269,28 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     );
   }
 
+  // void _requestRide(Ride ride) {
+  //   if ((ride.availableSeats ?? 0) <= 0) {
+  //     _showSnack("No seats available");
+  //     return;
+  //   }
+  //
+  //   final request = PassengerInfo(
+  //     userId: currentUser?['email'] ?? "",
+  //     name: currentUser?['name'] ?? "Unknown",
+  //     status: "pending",
+  //   );
+  //
+  //   setState(() {
+  //     ride.passengers.add(request);
+  //     ride.availableSeats = (ride.availableSeats ?? 1) - 1;
+  //     myRequest = request;
+  //   });
+  //
+  //   _showSnack("Request sent");
+  // }
+
+  //-----------------------------------------------
   void _requestRide(Ride ride) {
     if ((ride.availableSeats ?? 0) <= 0) {
       _showSnack("No seats available");
@@ -281,23 +303,55 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
       status: "pending",
     );
 
-    setState(() {
-      ride.passengers.add(request);
-      ride.availableSeats = (ride.availableSeats ?? 1) - 1;
-      myRequest = request;
-    });
+    final rideIndex = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
 
-    _showSnack("Request sent");
+    if (rideIndex != -1) {
+      final currentRide = dummyRides[rideIndex];
+
+      // ✅ Explicit type declaration
+      List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
+      updatedPassengers.add(request);
+
+      final updatedRide = currentRide.copyWith(
+        passengers: updatedPassengers,
+        pendingRequests: currentRide.pendingRequests + 1,
+      );
+
+      dummyRides[rideIndex] = updatedRide;
+
+      setState(() {
+        myRequest = request;
+      });
+
+      _showSnack("Request sent");
+    }
   }
 
-  void _cancelRequest() {
-    setState(() {
-      widget.ride.passengers.removeWhere((p) => p.userId == currentUser?['email']);
-      widget.ride.availableSeats = (widget.ride.availableSeats ?? 0) + 1;
-      myRequest = null;
-    });
 
-    _showSnack("Request cancelled");
+  //---------------------------------------------------
+  void _cancelRequest() {
+    final rideIndex = dummyRides.indexWhere((r) => r.rideId == widget.ride.rideId);
+
+    if (rideIndex != -1) {
+      final currentRide = dummyRides[rideIndex];
+
+      // ✅ Explicit type declaration
+      List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
+      updatedPassengers.removeWhere((p) => p.userId == currentUser?['email']);
+
+      final updatedRide = currentRide.copyWith(
+        passengers: updatedPassengers,
+        pendingRequests: currentRide.pendingRequests - 1,
+      );
+
+      dummyRides[rideIndex] = updatedRide;
+
+      setState(() {
+        myRequest = null;
+      });
+
+      _showSnack("Request cancelled");
+    }
   }
 
   void _showSnack(String msg) {

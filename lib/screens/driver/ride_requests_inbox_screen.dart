@@ -4,6 +4,9 @@ import '../../constants/text_styles.dart';
 import '../../models/ride_model.dart';
 import '../../data/dummy_users.dart';
 import '../../data/dummy_rides.dart';
+import '../../data/dummy_chats.dart';
+import '../../utils/routes.dart';
+import '../../models/chat_model.dart';
 
 class RideRequestsInboxScreen extends StatefulWidget {
   const RideRequestsInboxScreen({super.key});
@@ -12,8 +15,11 @@ class RideRequestsInboxScreen extends StatefulWidget {
   State<RideRequestsInboxScreen> createState() => _RideRequestsInboxScreenState();
 }
 
-class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
+class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
+    with SingleTickerProviderStateMixin {
+
   late Ride ride;
+  late TabController _tabController;
   int currentPendingCount = 0;
 
   @override
@@ -24,9 +30,22 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Filter pending passengers from the ride model
+    // Filter passengers by status
     final pendingPassengers = ride.passengers.where((p) => p.status == 'pending').toList();
+    final acceptedPassengers = ride.passengers.where((p) => p.status == 'accepted').toList();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -35,123 +54,137 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
           children: [
             const Text('Ride Requests'),
             Text(
-              '$currentPendingCount pending',
+              '${pendingPassengers.length} pending • ${acceptedPassengers.length} accepted',
               style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context, true), // Return true to refresh
+          onPressed: () => Navigator.pop(context, true),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Pending'),
+            Tab(text: 'Accepted'),
+          ],
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.textSecondary,
+          indicatorColor: AppColors.primary,
         ),
       ),
       body: Column(
         children: [
           // 📍 Ride Info Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            color: AppColors.primary.withValues(alpha: 0.05),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          _buildRideInfoHeader(),
+
+          // Tab Content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.radio_button_checked, size: 14, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        ride.from,
-                        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                // Pending Tab
+                pendingPassengers.isEmpty
+                    ? const Center(child: Text('No pending requests'))
+                    : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemCount: pendingPassengers.length,
+                  itemBuilder: (context, index) {
+                    final passengerInfo = pendingPassengers[index];
+                    final userData = dummyUsers.firstWhere(
+                          (u) => u['name'] == passengerInfo.name,
+                      orElse: () => dummyUsers[0],
+                    );
+                    return _buildPendingRequestCard(passengerInfo, userData);
+                  },
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: Container(width: 2, height: 16, color: Colors.grey.shade300),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 14, color: Colors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        ride.destination,
-                        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${ride.date} • ${ride.time}',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-                    ),
-                    Text(
-                      '${ride.availableSeats} seats left',
-                      style: AppTextStyles.caption.copyWith(
-                        color: ride.availableSeats == 0 ? Colors.red : AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+
+                // Accepted Tab
+                acceptedPassengers.isEmpty
+                    ? const Center(child: Text('No accepted passengers yet'))
+                    : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  itemCount: acceptedPassengers.length,
+                  itemBuilder: (context, index) {
+                    final passengerInfo = acceptedPassengers[index];
+                    final userData = dummyUsers.firstWhere(
+                          (u) => u['name'] == passengerInfo.name,
+                      orElse: () => dummyUsers[0],
+                    );
+                    return _buildAcceptedPassengerCard(passengerInfo, userData);
+                  },
                 ),
               ],
             ),
           ),
-
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Pending Requests',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-
-          // 🧾 Request List
-          Expanded(
-            child: pendingPassengers.isEmpty
-                ? const Center(child: Text('No pending requests'))
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: pendingPassengers.length,
-              itemBuilder: (context, index) {
-                final passengerInfo = pendingPassengers[index];
-                final userData = dummyUsers.firstWhere(
-                      (u) => u['name'] == passengerInfo.name,
-                  orElse: () => dummyUsers[0],
-                );
-
-                return _buildRequestCard(passengerInfo, userData);
-              },
-            ),
-          ),
-        ],
-      ),
-
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 1,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Rides'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
     );
   }
 
-  Widget _buildRequestCard(PassengerInfo passenger, Map<String, dynamic> userData) {
+  // 📍 Ride Info Header
+  Widget _buildRideInfoHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      color: AppColors.primary.withValues(alpha: 0.05),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.radio_button_checked, size: 14, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ride.from,
+                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Container(width: 2, height: 16, color: Colors.grey.shade300),
+          ),
+          Row(
+            children: [
+              const Icon(Icons.location_on, size: 14, color: Colors.green),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ride.destination,
+                  style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${ride.date} • ${ride.time}',
+                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+              ),
+              Text(
+                '${ride.availableSeats} seats left',
+                style: AppTextStyles.caption.copyWith(
+                  color: ride.availableSeats == 0 ? Colors.red : AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 📝 Pending Request Card (with Accept/Decline buttons)
+  Widget _buildPendingRequestCard(PassengerInfo passenger, Map<String, dynamic> userData) {
     final bool isSeatsAvailable = ride.availableSeats > 0;
 
     return Container(
@@ -201,7 +234,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
                       ],
                     ),
                     Text(
-                      'Requested 1 hour ago',
+                      'Requested just now',
                       style: AppTextStyles.caption.copyWith(color: AppColors.textHint),
                     ),
                   ],
@@ -254,8 +287,109 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
                 child: IconButton(
                   onPressed: () => _handleRequest(passenger, false),
                   icon: const Icon(Icons.close, color: Colors.red, size: 20),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  constraints: const BoxConstraints(),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ Accepted Passenger Card (with Chat button)
+  Widget _buildAcceptedPassengerCard(PassengerInfo passenger, Map<String, dynamic> userData) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.green.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.green.withValues(alpha: 0.1),
+                child: Text(
+                  passenger.name[0],
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      passenger.name,
+                      style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 14, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${userData['passengerRating']} • ${userData['ridesAsPassenger']} rides',
+                          style: AppTextStyles.caption,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone, size: 12, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(
+                          userData['phone'] ?? 'No phone',
+                          style: AppTextStyles.caption.copyWith(color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _showPassengerProfile(userData),
+                  icon: const Icon(Icons.visibility_outlined, size: 18),
+                  label: const Text('View Profile'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: BorderSide(color: Colors.grey.shade200),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _startChat(passenger, userData),
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('Chat'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
                 ),
               ),
             ],
@@ -270,31 +404,23 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
 
     if (rideIndex != -1) {
       setState(() {
-        // Get current ride from dummyRides
         Ride currentRide = dummyRides[rideIndex];
-
-        // Update passengers list
         List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
         int passengerIndex = updatedPassengers.indexWhere((p) => p.userId == passenger.userId);
 
         if (passengerIndex != -1) {
           if (accept && currentRide.availableSeats > 0) {
-            // ACCEPT LOGIC
             updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(
                 status: 'accepted'
             );
 
-            // Update ride with new values
             currentRide = currentRide.copyWith(
               availableSeats: currentRide.availableSeats - 1,
               passengers: updatedPassengers,
               pendingRequests: currentRide.pendingRequests - 1,
             );
 
-            // Persist to dummyRides
             dummyRides[rideIndex] = currentRide;
-
-            // Update local state
             ride = currentRide;
             currentPendingCount = ride.pendingRequests;
 
@@ -307,21 +433,16 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
               ),
             );
           } else if (!accept) {
-            // DECLINE LOGIC
             updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(
                 status: 'declined'
             );
 
-            // Update ride with new values (seats unchanged)
             currentRide = currentRide.copyWith(
               passengers: updatedPassengers,
               pendingRequests: currentRide.pendingRequests - 1,
             );
 
-            // Persist to dummyRides
             dummyRides[rideIndex] = currentRide;
-
-            // Update local state
             ride = currentRide;
             currentPendingCount = ride.pendingRequests;
 
@@ -336,18 +457,81 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
           }
         }
       });
-
-      // If no pending requests left, go back after 1 second
-      if (currentPendingCount == 0) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            Navigator.pop(context, true);
-          }
-        });
-      }
     }
   }
 
+  void _startChat(PassengerInfo passenger, Map<String, dynamic> userData) {
+    final currentDriverId = getCurrentUserId();  // Driver ka email
+    final passengerEmail = userData['email'];     // Passenger ka email
+    final passengerName = userData['name'];
+
+    print('🔍 Opening chat - Driver: $currentDriverId, Passenger: $passengerEmail, Ride: ${ride.rideId}');
+
+    if (currentDriverId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please login to chat")),
+      );
+      return;
+    }
+
+    // 🔍 Find existing chat (driver + passenger + same ride)
+    ChatModel? existingChat;
+
+    for (var chat in dummyChats) {
+      print('📋 Checking chat: ${chat.id}, Participants: ${chat.participants}, RideId: ${chat.rideId}');
+
+      if (chat.participants.contains(currentDriverId) &&
+          chat.participants.contains(passengerEmail) &&
+          chat.rideId == ride.rideId) {
+        existingChat = chat;
+        print('✅ Found existing chat: ${chat.id}');
+        break;
+      }
+    }
+
+    // 🆕 Create new chat if not found
+    if (existingChat == null) {
+      print('🆕 No existing chat found, creating new one...');
+
+      // Check again by participants only
+      for (var chat in dummyChats) {
+        if (chat.participants.contains(currentDriverId) &&
+            chat.participants.contains(passengerEmail)) {
+          existingChat = chat;
+          print('✅ Found existing chat by participants only: ${chat.id}');
+          break;
+        }
+      }
+
+      if (existingChat == null) {
+        // Create new chat with unreadCounts map
+        final newChat = ChatModel(
+          id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
+          participants: [currentDriverId, passengerEmail],
+          rideId: ride.rideId,
+          lastMessage: '',
+          lastMessageTime: '',
+          unreadCounts: {
+            currentDriverId: 0,
+            passengerEmail: 0,
+          },
+        );
+
+        dummyChats.add(newChat);
+        existingChat = newChat;
+        print('✅ Created new chat: ${newChat.id}');
+      }
+    }
+
+    // 🚀 Navigate to chat
+    if (existingChat != null) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.individualChat,
+        arguments: existingChat.id,
+      );
+    }
+  }
   void _showPassengerProfile(Map<String, dynamic> userData) {
     showDialog(
       context: context,
@@ -364,6 +548,8 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen> {
             Text('🚗 Rides taken: ${userData['ridesAsPassenger']}'),
             const SizedBox(height: 8),
             Text('📧 ${userData['email']}'),
+            const SizedBox(height: 8),
+            Text('📚 ${userData['bio'] ?? 'No bio added'}'),
           ],
         ),
         actions: [
