@@ -18,13 +18,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Timer? _timer;
 
   final List<OnboardingItem> _onboardingData = [
-    OnboardingItem(
-      imagePath: 'assets/icons/logo.png',
-      title: 'Campus Carpool',
-      description: 'Ride Together, Save Together',
-      color: AppColors.primaryLight,
-      backgroundColor: Colors.white,  // Changed to white
-    ),
+    // OnboardingItem(
+    //   imagePath: 'assets/icons/logo.png',
+    //   title: 'Campus Carpool',
+    //   description: 'Ride Together, Save Together',
+    //   color: AppColors.primaryLight,
+    //   backgroundColor: Colors.white,  // Changed to white
+    // ),
     OnboardingItem(
       imagePath: 'assets/icons/car2.png',
       title: 'Find Rides Easily',
