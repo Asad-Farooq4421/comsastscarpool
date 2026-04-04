@@ -665,7 +665,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: CustomButton(
                               text: 'Cancel',
                               onPressed: _toggleEdit,
-                              isOutlined: true,
+                              backgroundColor: AppColors.primary,
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -683,7 +683,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: () {
                         Navigator.pushNamed(context, AppRoutes.settings);
                       },
-                      isOutlined: true,
+                      backgroundColor: AppColors.primary,
                     ),
                     const SizedBox(height: 12),
                     CustomButton(

@@ -1,4 +1,5 @@
 import '../models/ride_model.dart';
+import '../models/ride_model.dart';
 
 final List<Ride> dummyRides = [
   Ride(

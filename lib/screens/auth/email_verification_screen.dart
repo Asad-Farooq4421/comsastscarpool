@@ -74,7 +74,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 
       // Navigate to profile setup
       Future.delayed(const Duration(seconds: 1), () {
-        Navigator.pushReplacementNamed(context, AppRoutes.profile);  // ← Already has this
+        Navigator.pushReplacementNamed(context, AppRoutes.main);  // ← Already has this
       });
     });
   }

@@ -3,11 +3,11 @@ import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 
 import '../../data/dummy_users.dart';
+import '../../data/ride_requests.dart';
 import '../../models/ride_model.dart';
 import '../../data/dummy_rides.dart';
 import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
-
 
 import 'ride_details_screen.dart';
 import '../../utils/routes.dart';
@@ -136,6 +136,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final to = toController.text.toLowerCase().trim();
     final date = dateController.text.trim();
 
+    // 🔑 Get current user ID (same logic you used in chat)
+    final currentUserId = currentUser?['email'] ?? "unknown_user";
+
     setState(() {
       hasSearched = true;
 
@@ -148,9 +151,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
         final matchDate = date.isEmpty || ride.date == date;
 
-        final hasSeats = (ride.availableSeats) > 0;
+        final hasSeats = ride.availableSeats > 0;
 
-        return matchFrom && matchTo && matchDate && hasSeats;
+        // 🚫 NEW CONDITION: exclude rides created by current user
+        final notMyRide = ride.driverId != currentUserId;
+
+        return matchFrom && matchTo && matchDate && hasSeats && notMyRide;
       }).toList();
     });
   }

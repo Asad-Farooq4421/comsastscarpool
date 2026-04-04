@@ -2,10 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/dummy_chats.dart';
 import '../../models/chat_model.dart';
+import '../../models/request_model.dart';
 import '../../models/ride_model.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../widgets/app_bottom_nav.dart';
+
 import '../../data/dummy_rides.dart';
 import '../../data/ride_requests.dart';
 import '../chat/individual_chat_screen.dart'; // for currentUser
@@ -14,13 +15,15 @@ class RideDetailsScreen extends StatefulWidget {
   final Ride ride;
   const RideDetailsScreen({super.key, required this.ride});
 
+
   @override
   State<RideDetailsScreen> createState() => _RideDetailsScreenState();
 }
 
 class _RideDetailsScreenState extends State<RideDetailsScreen> {
-  PassengerInfo? myRequest;
+
   Timer? _timer;
+  RideRequest? myRequest;
 
   @override
   void initState() {
@@ -41,17 +44,17 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
   // 🔍 Load this user's request from ride.passengers
   void _loadRequest() {
-    final match = widget.ride.passengers.firstWhere(
-          (p) => p.userId == currentUser?['email'],
-      orElse: () => myRequest ?? PassengerInfo(userId: '', name: '', status: ''),
+    final currentUserEmail = currentUser?['email'];
+
+    final match = rideRequests.where(
+          (r) =>
+      r.rideId == widget.ride.rideId &&
+          r.userId == currentUserEmail,
     );
 
-    // Only update if a real match is found
-    if (match.userId.isNotEmpty) {
-      setState(() {
-        myRequest = match;
-      });
-    }
+    setState(() {
+      myRequest = match.isNotEmpty ? match.first : null;
+    });
   }
 
   @override
@@ -226,8 +229,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   }
 
   // STATUS
-  Widget _statusWidget(PassengerInfo request) {
+  Widget _statusWidget(RideRequest request) {
     Color color;
+
     switch (request.status) {
       case "accepted":
         color = Colors.green;
@@ -241,9 +245,16 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
-        children: [Icon(Icons.info, color: color), const SizedBox(width: 8), Text("Request ${request.status}", style: TextStyle(color: color))],
+        children: [
+          Icon(Icons.info, color: color),
+          const SizedBox(width: 8),
+          Text("Request ${request.status}", style: TextStyle(color: color)),
+        ],
       ),
     );
   }
@@ -269,89 +280,82 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     );
   }
 
-  // void _requestRide(Ride ride) {
-  //   if ((ride.availableSeats ?? 0) <= 0) {
-  //     _showSnack("No seats available");
-  //     return;
-  //   }
-  //
-  //   final request = PassengerInfo(
-  //     userId: currentUser?['email'] ?? "",
-  //     name: currentUser?['name'] ?? "Unknown",
-  //     status: "pending",
-  //   );
-  //
-  //   setState(() {
-  //     ride.passengers.add(request);
-  //     ride.availableSeats = (ride.availableSeats ?? 1) - 1;
-  //     myRequest = request;
-  //   });
-  //
-  //   _showSnack("Request sent");
-  // }
-
-  //-----------------------------------------------
   void _requestRide(Ride ride) {
-    if ((ride.availableSeats ?? 0) <= 0) {
-      _showSnack("No seats available");
+    final currentUserEmail = currentUser?['email'];
+    final currentUserName = currentUser?['name'] ?? "Unknown";
+
+    final alreadyRequested = rideRequests.any(
+          (r) =>
+      r.rideId == ride.rideId &&
+          r.userId == currentUserEmail,
+    );
+
+    if (alreadyRequested) {
+      _showSnack("Already requested this ride");
       return;
     }
 
-    final request = PassengerInfo(
-      userId: currentUser?['email'] ?? "",
-      name: currentUser?['name'] ?? "Unknown",
+    final request = RideRequest(
+      rideId: ride.rideId,
+      userId: currentUserEmail,
+      passengerName: currentUserName,
       status: "pending",
     );
 
-    final rideIndex = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
+    rideRequests.add(request);
 
-    if (rideIndex != -1) {
-      final currentRide = dummyRides[rideIndex];
+    setState(() {
+      myRequest = request;
+    });
 
-      // ✅ Explicit type declaration
-      List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
-      updatedPassengers.add(request);
-
-      final updatedRide = currentRide.copyWith(
-        passengers: updatedPassengers,
-        pendingRequests: currentRide.pendingRequests + 1,
-      );
-
-      dummyRides[rideIndex] = updatedRide;
-
-      setState(() {
-        myRequest = request;
-      });
-
-      _showSnack("Request sent");
-    }
+    _showSnack("Request sent");
   }
 
-
-  //---------------------------------------------------
   void _cancelRequest() {
-    final rideIndex = dummyRides.indexWhere((r) => r.rideId == widget.ride.rideId);
+    final currentUserEmail = currentUser?['email'];
 
-    if (rideIndex != -1) {
-      final currentRide = dummyRides[rideIndex];
+    final index = rideRequests.indexWhere(
+          (r) =>
+      r.rideId == widget.ride.rideId &&
+          r.userId == currentUserEmail,
+    );
 
-      // ✅ Explicit type declaration
-      List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
-      updatedPassengers.removeWhere((p) => p.userId == currentUser?['email']);
+    if (index == -1) return;
 
-      final updatedRide = currentRide.copyWith(
-        passengers: updatedPassengers,
-        pendingRequests: currentRide.pendingRequests - 1,
+    final request = rideRequests[index];
+
+    // ✅ If accepted → remove from ride passengers
+    if (request.status == "accepted") {
+      final rideIndex = dummyRides.indexWhere(
+            (r) => r.rideId == widget.ride.rideId,
       );
 
-      dummyRides[rideIndex] = updatedRide;
+      if (rideIndex != -1) {
+        final currentRide = dummyRides[rideIndex];
 
-      setState(() {
-        myRequest = null;
-      });
+        List<PassengerInfo> updatedPassengers =
+        List.from(currentRide.passengers);
 
-      _showSnack("Request cancelled");
+        updatedPassengers.removeWhere(
+              (p) => p.userId == currentUserEmail,
+        );
+
+        final updatedRide = currentRide.copyWith(
+          passengers: updatedPassengers,
+        );
+
+        dummyRides[rideIndex] = updatedRide;
+      }
     }
+
+    // ❌ Remove request from global list
+    rideRequests.removeAt(index);
+
+    setState(() {
+      myRequest = null;
+    });
+
+    _showSnack("Request cancelled");
   }
 
   void _showSnack(String msg) {
