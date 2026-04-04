@@ -24,11 +24,17 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
   late TabController _tabController;
   int currentPendingCount = 0;
 
+  bool _isInitialized = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    ride = ModalRoute.of(context)!.settings.arguments as Ride;
-    currentPendingCount = ride.pendingRequests;
+
+    if (!_isInitialized) {
+      ride = ModalRoute.of(context)!.settings.arguments as Ride;
+      currentPendingCount = ride.pendingRequests;
+      _isInitialized = true;
+    }
   }
 
   @override
@@ -468,13 +474,83 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
       currentPendingCount = ride.pendingRequests;
     });
   }
+  //
+  // void _startChat(PassengerInfo passenger, Map<String, dynamic> userData) {
+  //   final currentDriverId = getCurrentUserId();  // Driver ka email
+  //   final passengerEmail = userData['email'];     // Passenger ka email
+  //   final passengerName = userData['name'];
+  //
+  //   print('🔍 Opening chat - Driver: $currentDriverId, Passenger: $passengerEmail, Ride: ${ride.rideId}');
+  //
+  //   if (currentDriverId.isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text("Please login to chat")),
+  //     );
+  //     return;
+  //   }
+  //
+  //   // 🔍 Find existing chat (driver + passenger + same ride)
+  //   ChatModel? existingChat;
+  //
+  //   for (var chat in dummyChats) {
+  //     print('📋 Checking chat: ${chat.id}, Participants: ${chat.participants}, RideId: ${chat.rideId}');
+  //
+  //     if (chat.participants.contains(currentDriverId) &&
+  //         chat.participants.contains(passengerEmail) &&
+  //         chat.rideId == ride.rideId) {
+  //       existingChat = chat;
+  //       print('✅ Found existing chat: ${chat.id}');
+  //       break;
+  //     }
+  //   }
+  //
+  //   // 🆕 Create new chat if not found
+  //   if (existingChat == null) {
+  //     print('🆕 No existing chat found, creating new one...');
+  //
+  //     // Check again by participants only
+  //     for (var chat in dummyChats) {
+  //       if (chat.participants.contains(currentDriverId) &&
+  //           chat.participants.contains(passengerEmail)) {
+  //         existingChat = chat;
+  //         print('✅ Found existing chat by participants only: ${chat.id}');
+  //         break;
+  //       }
+  //     }
+  //
+  //     if (existingChat == null) {
+  //       // Create new chat with unreadCounts map
+  //       final newChat = ChatModel(
+  //         id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
+  //         participants: [currentDriverId, passengerEmail],
+  //         rideId: ride.rideId,
+  //         lastMessage: '',
+  //         lastMessageTime: '',
+  //         unreadCounts: {
+  //           currentDriverId: 0,
+  //           passengerEmail: 0,
+  //         },
+  //       );
+  //
+  //       dummyChats.add(newChat);
+  //       existingChat = newChat;
+  //       print('✅ Created new chat: ${newChat.id}');
+  //     }
+  //   }
+  //
+  //   // 🚀 Navigate to chat
+  //   if (existingChat != null) {
+  //     Navigator.pushNamed(
+  //       context,
+  //       AppRoutes.individualChat,
+  //       arguments: existingChat.id,
+  //     );
+  //   }
+  // }
 
   void _startChat(PassengerInfo passenger, Map<String, dynamic> userData) {
-    final currentDriverId = getCurrentUserId();  // Driver ka email
-    final passengerEmail = userData['email'];     // Passenger ka email
-    final passengerName = userData['name'];
-
-    print('🔍 Opening chat - Driver: $currentDriverId, Passenger: $passengerEmail, Ride: ${ride.rideId}');
+    final currentDriverId = getCurrentUserId();
+    final passengerEmail = userData['email'];
 
     if (currentDriverId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -483,64 +559,58 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
       return;
     }
 
-    // 🔍 Find existing chat (driver + passenger + same ride)
+    // 🔍 Find existing chat
     ChatModel? existingChat;
 
     for (var chat in dummyChats) {
-      print('📋 Checking chat: ${chat.id}, Participants: ${chat.participants}, RideId: ${chat.rideId}');
-
       if (chat.participants.contains(currentDriverId) &&
           chat.participants.contains(passengerEmail) &&
           chat.rideId == ride.rideId) {
         existingChat = chat;
-        print('✅ Found existing chat: ${chat.id}');
         break;
       }
     }
 
-    // 🆕 Create new chat if not found
+    // If no chat found, find by participants only
     if (existingChat == null) {
-      print('🆕 No existing chat found, creating new one...');
-
-      // Check again by participants only
       for (var chat in dummyChats) {
         if (chat.participants.contains(currentDriverId) &&
             chat.participants.contains(passengerEmail)) {
           existingChat = chat;
-          print('✅ Found existing chat by participants only: ${chat.id}');
           break;
         }
       }
-
-      if (existingChat == null) {
-        // Create new chat with unreadCounts map
-        final newChat = ChatModel(
-          id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
-          participants: [currentDriverId, passengerEmail],
-          rideId: ride.rideId,
-          lastMessage: '',
-          lastMessageTime: '',
-          unreadCounts: {
-            currentDriverId: 0,
-            passengerEmail: 0,
-          },
-        );
-
-        dummyChats.add(newChat);
-        existingChat = newChat;
-        print('✅ Created new chat: ${newChat.id}');
-      }
     }
 
-    // 🚀 Navigate to chat
+    // If still no chat, create a new one
+    if (existingChat == null) {
+      final newChat = ChatModel(
+        id: 'chat_${DateTime.now().millisecondsSinceEpoch}',
+        participants: [currentDriverId, passengerEmail],
+        rideId: ride.rideId,
+        lastMessage: '',
+        lastMessageTime: '',
+        unreadCounts: {
+          currentDriverId: 0,
+          passengerEmail: 0,
+        },
+      );
+
+      // ✅ Use addNewChat function
+      addNewChat(newChat);
+      existingChat = newChat;
+    }
+
+    // ✅ Navigate with chat ID (String)
     if (existingChat != null) {
       Navigator.pushNamed(
         context,
         AppRoutes.individualChat,
-        arguments: existingChat.id,
+        arguments: existingChat.id,  // ← String, not object
       );
     }
   }
+
   void _showPassengerProfile(Map<String, dynamic> userData) {
     showDialog(
       context: context,
