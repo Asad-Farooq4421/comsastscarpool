@@ -10,6 +10,7 @@ import '../utils/routes.dart';
 import '../widgets/app_bottom_nav.dart';
 import 'chat/chat_list_screen.dart';
 import 'driver/driver_home_screen.dart';
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -20,6 +21,15 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int currentIndex = 0;
   bool isDriverMode = false;
+
+  // ==================== ADD THIS METHOD ====================
+  void _refreshDriverStatus() {
+    setState(() {
+      // Force rebuild to refresh isDriverUser in SearchScreen
+      isDriverMode = isDriverMode;
+    });
+  }
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +44,23 @@ class _MainScreenState extends State<MainScreen> {
               : SearchScreen(
             onSwitch: () => setState(() => isDriverMode = true),
             onNavigateToProfile: () {
-              ProfileScreen.shouldSwitchToDriver = true;  // ← SET FLAG
+              ProfileScreen.shouldSwitchToDriver = true;
               setState(() => currentIndex = 3);
             },
           ),
-
           MyRidesScreen(allRides: dummyRides),
           const ChatListScreen(),
-          const ProfileScreen(),
+          // ==================== UPDATE THIS ====================
+          ProfileScreen(
+            onProfileUpdated: () {
+              setState(() {
+                isDriverMode = true;
+              });
+            },
+          ),
+          // ====================================================
         ],
       ),
-
       bottomNavigationBar: AppBottomNav(
         currentIndex: currentIndex,
         onTap: (index) {

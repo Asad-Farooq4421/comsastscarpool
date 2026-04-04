@@ -6,10 +6,15 @@ import '../../widgets/custom_button.dart';
 import '../../data/dummy_users.dart';
 import '../passenger/my_requests_screen.dart';
 import '../driver/my_posted_rides_screen.dart';
-
-
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  final VoidCallback? onProfileUpdated;  // ADD THIS LINE
+
+  const ProfileScreen({
+    Key? key,
+    this.onProfileUpdated,  // ADD THIS LINE
+  }) : super(key: key);
+
+
   static bool shouldSwitchToDriver = false;
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -19,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic> _user = {}; // Initialize as empty map, not nullable
   bool _isEditing = false;
   bool _isDriver = false;
+  bool _isDriverModeSelected = false;
   bool _pendingDriverSwitch = false;
   bool _hasShownDriverPopup = false;
 
@@ -74,12 +80,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {
-          _isDriver = true;
-          _isEditing = true;
-          _hasShownDriverPopup = true;
+          _isDriverModeSelected = true;  // Show Driver UI
+          _isEditing = true;              // Open edit mode to fill vehicle details
+          _hasShownDriverPopup = true;    // Mark popup as shown
+          // _isDriver remains false until validation passes on save
         });
 
-        // Scroll to vehicle details
+        // Scroll to vehicle details section
         Future.delayed(const Duration(milliseconds: 300), () {
           Scrollable.ensureVisible(
             _vehicleDetailsKey.currentContext!,
@@ -193,8 +200,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // ✅ ONLY set to true when user clicks "Yes, Continue"
         _hasShownDriverPopup = true;
         setState(() {
-          _isDriver = true;
-          _isEditing = true;  // Open edit mode to fill vehicle details
+          _isEditing = true;
+          _isDriverModeSelected = true;// Open edit mode to fill vehicle details
         });
       }
       // If user clicks "Not Now", _hasShownDriverPopup remains false
@@ -215,7 +222,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildModeSwitch() {
-    // Get current user to check if they are already a driver
     final currentUser = getCurrentUser();
     final isAlreadyDriver = currentUser?['isDriver'] ?? false;
 
@@ -232,17 +238,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Passenger Mode
           GestureDetector(
             onTap: () {
-              // Switching to Passenger - direct, no popup needed
-              if (_isDriver) {
+              // Switching to Passenger mode
+              if (_isDriverModeSelected) {
                 setState(() {
-                  _isDriver = false;
+                  _isDriverModeSelected = false;
+                  // If not actually a driver in database, reset _isDriver as well
+                  if (!isAlreadyDriver) {
+                    _isDriver = false;
+                  }
+                  _isEditing = false;
                 });
               }
             },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               decoration: BoxDecoration(
-                color: !_isDriver ? AppColors.primary : Colors.transparent,
+                color: !_isDriverModeSelected ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -250,14 +261,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icon(
                     Icons.person,
                     size: 18,
-                    color: !_isDriver ? Colors.white : AppColors.textSecondary,
+                    color: !_isDriverModeSelected ? Colors.white : AppColors.textSecondary,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Passenger',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: !_isDriver ? Colors.white : AppColors.textSecondary,
-                      fontWeight: !_isDriver ? FontWeight.w600 : FontWeight.normal,
+                      color: !_isDriverModeSelected ? Colors.white : AppColors.textSecondary,
+                      fontWeight: !_isDriverModeSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -267,11 +278,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Driver Mode
           GestureDetector(
             onTap: () {
-              if (!_isDriver) {
-                // Check if user is already a driver in database
+              // Switching to Driver mode
+              if (!_isDriverModeSelected) {
                 if (isAlreadyDriver) {
-                  // Already a driver - switch directly without popup
+                  // Already a driver in database - switch directly
                   setState(() {
+                    _isDriverModeSelected = true;
                     _isDriver = true;
                   });
                 } else {
@@ -279,10 +291,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (!_hasShownDriverPopup) {
                     _showDriverModeDialog();
                   } else {
-                    // Popup already shown before, just switch
+                    // Popup already shown, just switch to Driver UI
                     setState(() {
-                      _isDriver = true;
+                      _isDriverModeSelected = true;
                       _isEditing = true;
+                      // _isDriver remains false until validation passes on save
                     });
                   }
                 }
@@ -291,7 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               decoration: BoxDecoration(
-                color: _isDriver ? AppColors.primary : Colors.transparent,
+                color: _isDriverModeSelected ? AppColors.primary : Colors.transparent,
                 borderRadius: BorderRadius.circular(30),
               ),
               child: Row(
@@ -299,14 +312,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icon(
                     Icons.directions_car,
                     size: 18,
-                    color: _isDriver ? Colors.white : AppColors.textSecondary,
+                    color: _isDriverModeSelected ? Colors.white : AppColors.textSecondary,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Driver',
                     style: AppTextStyles.bodyMedium.copyWith(
-                      color: _isDriver ? Colors.white : AppColors.textSecondary,
-                      fontWeight: _isDriver ? FontWeight.w600 : FontWeight.normal,
+                      color: _isDriverModeSelected ? Colors.white : AppColors.textSecondary,
+                      fontWeight: _isDriverModeSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ],
@@ -325,8 +338,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _saveProfile() {
-    // ✅ VALIDATION: If saving as Driver, check vehicle details
-    if (_isDriver) {
+    // If trying to become driver (Driver UI selected but not actually driver yet)
+    if (_isDriverModeSelected && !_isDriver) {
+      // Validate all vehicle fields
       if (_vehicleTypeController.text.trim().isEmpty ||
           _vehicleModelController.text.trim().isEmpty ||
           _vehicleColorController.text.trim().isEmpty ||
@@ -335,7 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please fill all vehicle details before becoming a driver'),
+            content: Text('Please fill all vehicle details to become a driver'),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 3),
           ),
@@ -354,8 +368,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
         return;
       }
+
+      // ✅ Validation passed - now actually become driver
+      setState(() {
+        _isDriver = true;
+      });
+      widget.onProfileUpdated?.call();
     }
 
+    // Save to database
     setState(() {
       _user['name'] = _nameController.text;
       _user['phone'] = _phoneController.text;
@@ -539,11 +560,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (!_isDriver) ...[
+            // ==================== CHANGED: Use _isDriverModeSelected ====================
+            if (!_isDriverModeSelected) ...[
               _buildPassengerStats(),
-
               const SizedBox(height: 16),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: CustomButton(
@@ -556,13 +576,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     );
                   },
-                  backgroundColor: AppColors.primary, // ✅ visible now
+                  backgroundColor: AppColors.primary,
                 ),
               ),
             ],
-            if (_isDriver) _buildDriverStats(),
+            if (_isDriverModeSelected) _buildDriverStats(),
             const SizedBox(height: 16),
-            if (_isDriver) _buildVehicleDetails(),
+            if (_isDriverModeSelected) _buildVehicleDetails(),
+            // =========================================================================
             const SizedBox(height: 16),
             Container(
               color: Colors.white,

@@ -48,6 +48,7 @@ class _SearchScreenState extends State<SearchScreen> {
     super.didChangeDependencies();
     // Refresh user status when returning to this screen (after profile update)
     isDriverUser = isCurrentUserDriver();
+    print('didChangeDependencies - isDriverUser: $isDriverUser');
   }
   void _showDriverModeDialog() {
     showDialog(
@@ -231,6 +232,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   // Already a driver - go to driver home
                   widget.onSwitch();
                 } else {
+                  print('isDriverUser is false, showing popup');
                   // Not a driver yet - check if popup already shown
                   if (!_hasShownDriverPopup) {
                     _showDriverModeDialog();
