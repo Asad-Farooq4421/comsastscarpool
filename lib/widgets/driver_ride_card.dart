@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/ride_model.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
+import '../data/ride_requests.dart';
 
 class DriverRideCard extends StatelessWidget {
   final Ride ride;
@@ -17,8 +18,17 @@ class DriverRideCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  // Get pending requests count from rideRequests list
+  int get pendingRequestsCount {
+    return rideRequests.where(
+            (r) => r.rideId == ride.rideId && r.status == 'pending'
+    ).length;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final pendingCount = pendingRequestsCount;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -46,10 +56,10 @@ class DriverRideCard extends StatelessWidget {
                     ride.status == 'active' ? Colors.blue.shade50 : Colors.green.shade50,
                     ride.status == 'active' ? Colors.blue : Colors.green,
                   ),
-                  if (ride.pendingRequests > 0) ...[
+                  if (pendingCount > 0) ...[
                     const SizedBox(width: 8),
                     _buildBadge(
-                      '${ride.pendingRequests} New Requests',
+                      '$pendingCount New ${pendingCount == 1 ? 'Request' : 'Requests'}',
                       Colors.orange.shade50,
                       Colors.orange,
                     ),
@@ -114,22 +124,24 @@ class DriverRideCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              if (ride.pendingRequests > 0)
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: onViewRequests,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('View Requests'),
+              // ✅ "View Requests" button - ALWAYS VISIBLE
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: onViewRequests,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
+                  child: pendingCount > 0
+                      ? Text('View Requests ($pendingCount)')
+                      : const Text('View Requests'),
                 ),
-              if (ride.pendingRequests > 0) const SizedBox(width: 8),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onEdit,

@@ -475,7 +475,7 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 20),
 
-        // TIME PICKER (Clock) - Updated
+        // Time picker with validation
         Text(
           'Time *',
           style: AppTextStyles.inputLabel,
@@ -483,13 +483,32 @@ class _PostRideScreenState extends State<PostRideScreen> {
         const SizedBox(height: 8),
         InkWell(
           onTap: () async {
+            // Check if date is today
+            final selectedDate = DateTime.tryParse(formData['date']!);
+            final isToday = selectedDate != null &&
+                selectedDate.year == DateTime.now().year &&
+                selectedDate.month == DateTime.now().month &&
+                selectedDate.day == DateTime.now().day;
+
             TimeOfDay? pickedTime = await showTimePicker(
               context: context,
               initialTime: TimeOfDay.now(),
             );
+
             if (pickedTime != null) {
+              // Validate time if date is today
+              if (isToday) {
+                final now = TimeOfDay.now();
+                final selectedMinutes = pickedTime.hour * 60 + pickedTime.minute;
+                final currentMinutes = now.hour * 60 + now.minute;
+
+                if (selectedMinutes < currentMinutes) {
+                  _showErrorSnackbar('Please select a future time (current time: ${_formatTimeOfDay(now)})');
+                  return;
+                }
+              }
+
               setState(() {
-                // Format time like: 09:30 AM
                 final hour = pickedTime.hourOfPeriod;
                 final minute = pickedTime.minute.toString().padLeft(2, '0');
                 final period = pickedTime.period == DayPeriod.am ? 'AM' : 'PM';
@@ -728,4 +747,11 @@ class _PostRideScreenState extends State<PostRideScreen> {
       ],
     );
   }
+}
+
+String _formatTimeOfDay(TimeOfDay time) {
+  final hour = time.hourOfPeriod;
+  final minute = time.minute.toString().padLeft(2, '0');
+  final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+  return '$hour:$minute $period';
 }
