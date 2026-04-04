@@ -325,6 +325,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _saveProfile() {
+    // ✅ VALIDATION: If switching to Driver mode, check vehicle details
+    if (_isDriver && !_isEditing) {
+      // Check if vehicle details are filled
+      if (_vehicleTypeController.text.trim().isEmpty ||
+          _vehicleModelController.text.trim().isEmpty ||
+          _vehicleColorController.text.trim().isEmpty ||
+          _vehiclePlateController.text.trim().isEmpty ||
+          _vehicleSeatsController.text.trim().isEmpty) {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please fill all vehicle details before becoming a driver'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;  // ❌ Don't save
+      }
+
+      // Validate seats are between 1-4
+      int seats = int.tryParse(_vehicleSeatsController.text) ?? 0;
+      if (seats < 1 || seats > 4) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Number of seats must be between 1 and 4'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;  // ❌ Don't save
+      }
+    }
+
+    // ✅ Proceed with saving
     setState(() {
       _user['name'] = _nameController.text;
       _user['phone'] = _phoneController.text;
