@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
+import '../../data/ride_requests.dart';
+import '../../models/request_model.dart';
 import '../../models/ride_model.dart';
 import '../../data/dummy_users.dart';
 import '../../data/dummy_rides.dart';
@@ -44,8 +46,12 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
   @override
   Widget build(BuildContext context) {
     // Filter passengers by status
-    final pendingPassengers = ride.passengers.where((p) => p.status == 'pending').toList();
-    final acceptedPassengers = ride.passengers.where((p) => p.status == 'accepted').toList();
+    final pendingRequests = rideRequests
+        .where((r) => r.rideId == ride.rideId && r.status == 'pending')
+        .toList();
+
+    final acceptedPassengers =
+    ride.passengers.where((p) => p.status == 'accepted').toList();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -54,7 +60,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
           children: [
             const Text('Ride Requests'),
             Text(
-              '${pendingPassengers.length} pending • ${acceptedPassengers.length} accepted',
+                '${pendingRequests.length} pending • ${acceptedPassengers.length} accepted',
               style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
             ),
           ],
@@ -85,18 +91,18 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
               controller: _tabController,
               children: [
                 // Pending Tab
-                pendingPassengers.isEmpty
+                pendingRequests.isEmpty
                     ? const Center(child: Text('No pending requests'))
                     : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  itemCount: pendingPassengers.length,
+                  itemCount: pendingRequests.length,
                   itemBuilder: (context, index) {
-                    final passengerInfo = pendingPassengers[index];
+                    final request = pendingRequests[index];
                     final userData = dummyUsers.firstWhere(
-                          (u) => u['name'] == passengerInfo.name,
+                          (u) => u['email'] == request.userId, // ✅ FIX (use email, NOT name)
                       orElse: () => dummyUsers[0],
                     );
-                    return _buildPendingRequestCard(passengerInfo, userData);
+                    return _buildPendingRequestCard(request, userData);
                   },
                 ),
 
@@ -109,7 +115,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                   itemBuilder: (context, index) {
                     final passengerInfo = acceptedPassengers[index];
                     final userData = dummyUsers.firstWhere(
-                          (u) => u['name'] == passengerInfo.name,
+                          (u) => u['email'] == passengerInfo.userId,
                       orElse: () => dummyUsers[0],
                     );
                     return _buildAcceptedPassengerCard(passengerInfo, userData);
@@ -184,7 +190,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
   }
 
   // 📝 Pending Request Card (with Accept/Decline buttons)
-  Widget _buildPendingRequestCard(PassengerInfo passenger, Map<String, dynamic> userData) {
+  Widget _buildPendingRequestCard(RideRequest request, Map<String, dynamic> userData) {
     final bool isSeatsAvailable = ride.availableSeats > 0;
 
     return Container(
@@ -210,7 +216,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                 radius: 24,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                 child: Text(
-                  passenger.name[0],
+                  request.passengerName[0],
                   style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
                 ),
               ),
@@ -220,7 +226,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      passenger.name,
+                      request.passengerName,
                       style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Row(
@@ -264,7 +270,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                 flex: 3,
                 child: ElevatedButton.icon(
                   onPressed: (isSeatsAvailable && currentPendingCount > 0)
-                      ? () => _handleRequest(passenger, true)
+                      ? () => _handleRequest(request, true)
                       : null,
                   icon: const Icon(Icons.check, size: 18),
                   label: Text(!isSeatsAvailable ? 'Full' : 'Accept'),
@@ -285,7 +291,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                   border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
                 ),
                 child: IconButton(
-                  onPressed: () => _handleRequest(passenger, false),
+                  onPressed: () => _handleRequest(request, false),
                   icon: const Icon(Icons.close, color: Colors.red, size: 20),
                 ),
               ),
@@ -399,65 +405,68 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
     );
   }
 
-  void _handleRequest(PassengerInfo passenger, bool accept) {
+  void _handleRequest(RideRequest request, bool accept) {
     final rideIndex = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
+    final requestIndex = rideRequests.indexWhere(
+          (r) => r.rideId == ride.rideId && r.userId == request.userId,
+    );
 
-    if (rideIndex != -1) {
-      setState(() {
-        Ride currentRide = dummyRides[rideIndex];
+    if (rideIndex == -1 || requestIndex == -1) return;
+
+    setState(() {
+      Ride currentRide = dummyRides[rideIndex];
+
+      if (accept && currentRide.availableSeats > 0) {
+        // ✅ Update request status
+        rideRequests[requestIndex] =
+            rideRequests[requestIndex].copyWith(status: "accepted");
+
+        // ✅ Add to passengers (FIXED HERE)
         List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
-        int passengerIndex = updatedPassengers.indexWhere((p) => p.userId == passenger.userId);
 
-        if (passengerIndex != -1) {
-          if (accept && currentRide.availableSeats > 0) {
-            updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(
-                status: 'accepted'
-            );
-
-            currentRide = currentRide.copyWith(
-              availableSeats: currentRide.availableSeats - 1,
-              passengers: updatedPassengers,
-              pendingRequests: currentRide.pendingRequests - 1,
-            );
-
-            dummyRides[rideIndex] = currentRide;
-            ride = currentRide;
-            currentPendingCount = ride.pendingRequests;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Passenger Accepted! Seats decreased.'),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          } else if (!accept) {
-            updatedPassengers[passengerIndex] = updatedPassengers[passengerIndex].copyWith(
-                status: 'declined'
-            );
-
-            currentRide = currentRide.copyWith(
-              passengers: updatedPassengers,
-              pendingRequests: currentRide.pendingRequests - 1,
-            );
-
-            dummyRides[rideIndex] = currentRide;
-            ride = currentRide;
-            currentPendingCount = ride.pendingRequests;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Request Declined'),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
+        if (!currentRide.passengers.any((p) => p.userId == request.userId)) {
+          updatedPassengers.add(
+            PassengerInfo(
+              userId: request.userId,
+              name: request.passengerName,
+              status: "accepted",
+            ),
+          );
         }
-      });
-    }
+
+        currentRide = currentRide.copyWith(
+          passengers: updatedPassengers,
+          availableSeats: currentRide.availableSeats - 1,
+          pendingRequests: currentRide.pendingRequests - 1,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Passenger Accepted!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (!accept) {
+        // ❌ Reject
+        rideRequests[requestIndex] =
+            rideRequests[requestIndex].copyWith(status: "rejected");
+
+        currentRide = currentRide.copyWith(
+          pendingRequests: currentRide.pendingRequests - 1,
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Request Declined'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+
+      dummyRides[rideIndex] = currentRide;
+      ride = currentRide;
+      currentPendingCount = ride.pendingRequests;
+    });
   }
 
   void _startChat(PassengerInfo passenger, Map<String, dynamic> userData) {
