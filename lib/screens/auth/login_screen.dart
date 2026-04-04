@@ -91,14 +91,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                icon: const Icon(Icons.arrow_back, size: 24),
-                padding: EdgeInsets.zero,
-                alignment: Alignment.centerLeft,
-              ),
               const SizedBox(height: 40),
               Text(
                 'Welcome Back!',

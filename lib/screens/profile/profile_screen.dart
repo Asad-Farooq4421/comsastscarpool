@@ -736,12 +736,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 title: const Text('My Posted Rides'),
                 subtitle: const Text('View and manage your rides'),
                 trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
+                onTap: () {
+                  // ✅ CHECK IF USER IS ACTUALLY A DRIVER
+                  if (_isDriver) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const MyPostedRidesScreen()),
                     );
-                  },
+                  } else {
+                    // Show error message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please complete vehicle details to become a driver first'),
+                        backgroundColor: Colors.orange,
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ],
