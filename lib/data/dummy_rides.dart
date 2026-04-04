@@ -19,8 +19,8 @@ final List<Ride> dummyRides = [
     notes: 'Can pick up near Starbucks',
     pendingRequests: 2,
     passengers: [
-      PassengerInfo(userId: 'p1', name: 'Ahmed', status: 'pending'),
-      PassengerInfo(userId: 'p2', name: 'Fatima', status: 'pending'),
+      PassengerInfo(userId: 'ahmed@isbstudent.comsats.edu.pk', name: 'Ahmed', status: 'pending'),
+      PassengerInfo(userId: 'fatima@isbstudent.comsats.edu.pk', name: 'Fatima', status: 'pending'),
     ],
   ),
   Ride(
@@ -58,7 +58,7 @@ final List<Ride> dummyRides = [
     notes: 'No smoking please',
     pendingRequests: 1,
     passengers: [
-      PassengerInfo(userId: 'p3', name: 'Sara Ahmed', status: 'accepted'),
+      PassengerInfo(userId: 'Bilal@isbstudent.comsats.edu.pk', name: 'Bilal Ahmed', status: 'accepted'),
     ],
   ),
   Ride(
@@ -69,7 +69,7 @@ final List<Ride> dummyRides = [
     driverRating: 4.2,
     from: 'COMSATS Gate',
     destination: 'G-11',
-    date: '2026-03-30',
+    date: '2026-04-15',
     time: '11:00 AM',
     totalSeats: 2,
     availableSeats: 0,
@@ -78,19 +78,19 @@ final List<Ride> dummyRides = [
     notes: '',
     pendingRequests: 0,
     passengers: [
-      PassengerInfo(userId: 'p4', name: 'Zara', status: 'accepted'),
-      PassengerInfo(userId: 'p5', name: 'Hassan', status: 'accepted'),
+      PassengerInfo(userId: 'zara@isbstudent.comsats.edu.pk', name: 'Zara', status: 'accepted'),
+      PassengerInfo(userId: 'hassan@isbstudent.comsats.edu.pk', name: 'Hassan', status: 'accepted'),
     ],
   ),
   Ride(
     rideId: '5',
-    driverId: 'sara@isbstudent.comsats.edu.pk',  // ✅ Changed
-    driverName: 'Sara Ahmed',
+    driverId: 'bilal@isbstudent.comsats.edu.pk',  // ✅ Changed
+    driverName: 'Bilal Ahmed',
     driverPhoto: '',
     driverRating: 4.9,
     from: 'Girls Hostel',
     destination: 'F-10',
-    date: '2026-03-31',
+    date: '2026-04-11',
     time: '09:00 AM',
     totalSeats: 4,
     availableSeats: 2,
@@ -99,8 +99,8 @@ final List<Ride> dummyRides = [
     notes: 'Female only',
     pendingRequests: 2,
     passengers: [
-      PassengerInfo(userId: 'p6', name: 'Ayesha', status: 'pending'),
-      PassengerInfo(userId: 'p7', name: 'Maria', status: 'pending'),
+      PassengerInfo(userId: 'ayesha@isbstudent.comsats.edu.pk', name: 'Ayesha', status: 'pending'),
+      PassengerInfo(userId: 'maria@isbstudent.comsats.edu.pk', name: 'Maria', status: 'pending'),
     ],
   ),
 ];

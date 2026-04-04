@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/dummy_users.dart';
 import '../../models/ride_model.dart';
 
-
 class MyRidesScreen extends StatefulWidget {
-
   final List<Ride> allRides;
 
   const MyRidesScreen({super.key, required this.allRides});
@@ -16,41 +14,57 @@ class MyRidesScreen extends StatefulWidget {
 class _MyRidesScreenState extends State<MyRidesScreen> {
   bool showUpcoming = true;
 
-  // ✅ FILTER USING NAME ONLY
+  /// ✅ Safe upcoming check (includes today properly)
+  bool isUpcomingRide(Ride ride) {
+    try {
+      final rideDate = DateTime.parse(ride.date);
+
+      final now = DateTime.now();
+
+      // Compare only date (ignore time)
+      final today = DateTime(now.year, now.month, now.day);
+      final rideDay = DateTime(rideDate.year, rideDate.month, rideDate.day);
+
+      return rideDay.isAfter(today) || rideDay.isAtSameMomentAs(today);
+    } catch (e) {
+      return false; // fallback if date is invalid
+    }
+  }
+
+  /// ✅ Get current user rides
   List<Ride> get userRides {
     final user = getCurrentUser();
     if (user == null) return [];
 
-    String name = user['name'];
-    bool isDriver = user['isDriver'] ?? false;
+    final email = user['email'];
+    final isDriver = user['isDriver'] ?? false;
 
     return widget.allRides.where((ride) {
-      bool isRideDriver = isDriver && ride.driverName == name;
+      final isRideDriver = isDriver && ride.driverId == email;
 
-      bool isPassenger = ride.passengers.any(
-            (p) => p.name == name,
+      final isPassenger = ride.passengers.any(
+            (p) => p.userId == email,
       );
 
       return isRideDriver || isPassenger;
     }).toList();
   }
 
+  /// ✅ Upcoming rides
   List<Ride> get upcomingRides =>
-      userRides.where((r) => r.isActive).toList();
+      userRides.where((r) => isUpcomingRide(r)).toList();
 
+  /// ✅ History rides
   List<Ride> get historyRides =>
-      userRides.where((r) => !r.isActive).toList();
+      userRides.where((r) => !isUpcomingRide(r)).toList();
 
   @override
   Widget build(BuildContext context) {
     final rides = showUpcoming ? upcomingRides : historyRides;
 
     return Scaffold(
-
       body: Column(
-
         children: [
-
           _header(),
           _tabs(),
           Expanded(
@@ -59,7 +73,10 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                 : ListView.builder(
               itemCount: rides.length,
               itemBuilder: (context, index) {
-                return RideCard(ride: rides[index]);
+                return RideCard(
+                  ride: rides[index],
+                  isUpcoming: isUpcomingRide(rides[index]),
+                );
               },
             ),
           ),
@@ -67,7 +84,6 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
       ),
     );
   }
-
 
   Widget _header() {
     return Container(
@@ -109,7 +125,7 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _tabButton("Upcoming (${upcomingRides.length})", true),
-          _tabButton("History", false),
+          _tabButton("History (${historyRides.length})", false),
         ],
       ),
     );
@@ -138,37 +154,47 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
 
 class RideCard extends StatelessWidget {
   final Ride ride;
+  final bool isUpcoming;
 
-  const RideCard({super.key, required this.ride});
+  const RideCard({
+    super.key,
+    required this.ride,
+    required this.isUpcoming,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16), // ✅ fixed
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // TOP
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _statusChip(ride.isActive ? "Upcoming" : "Completed"),
-                Text(ride.date, style: const TextStyle(color: Colors.grey)),
+                _statusChip(isUpcoming ? "Upcoming" : "Completed"),
+                Text(
+                  ride.date,
+                  style: const TextStyle(color: Colors.grey),
+                ),
               ],
             ),
-
             const SizedBox(height: 10),
 
-            // DRIVER
             Row(
               children: [
                 CircleAvatar(
-                  backgroundImage: NetworkImage(ride.driverPhoto),
+                  backgroundImage: ride.driverPhoto.isNotEmpty
+                      ? NetworkImage(ride.driverPhoto)
+                      : null,
+                  child: ride.driverPhoto.isEmpty
+                      ? Text(ride.driverName[0])
+                      : null,
                 ),
                 const SizedBox(width: 10),
                 Column(
@@ -177,7 +203,9 @@ class RideCard extends StatelessWidget {
                     Text(
                       ride.driverName,
                       style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const Text("Driver"),
                   ],
@@ -187,7 +215,6 @@ class RideCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            // ROUTE
             Row(
               children: [
                 const Icon(Icons.circle, size: 8, color: Colors.blue),
@@ -213,7 +240,6 @@ class RideCard extends StatelessWidget {
 
             const Divider(),
 
-            // TIME + PRICE
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -243,7 +269,9 @@ class RideCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.blue.shade100,
+        color: text == "Upcoming"
+            ? Colors.blue.shade100
+            : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(text, style: const TextStyle(fontSize: 12)),

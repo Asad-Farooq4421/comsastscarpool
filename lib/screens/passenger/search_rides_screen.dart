@@ -130,14 +130,16 @@ class _SearchScreenState extends State<SearchScreen> {
       // If user clicks "Not Now", _hasShownDriverPopup remains false
     });
   }
+
   //SEARCH FUNCTION
   void searchRides() {
     final from = fromController.text.toLowerCase().trim();
     final to = toController.text.toLowerCase().trim();
     final date = dateController.text.trim();
 
-    // 🔑 Get current user ID (same logic you used in chat)
     final currentUserId = currentUser?['email'] ?? "unknown_user";
+
+    final now = DateTime.now();
 
     setState(() {
       hasSearched = true;
@@ -153,10 +155,48 @@ class _SearchScreenState extends State<SearchScreen> {
 
         final hasSeats = ride.availableSeats > 0;
 
-        // 🚫 NEW CONDITION: exclude rides created by current user
         final notMyRide = ride.driverId != currentUserId;
 
-        return matchFrom && matchTo && matchDate && hasSeats && notMyRide;
+        // ✅ NEW: Convert ride date + time into DateTime
+        DateTime rideDateTime;
+
+        try {
+          final rideDate = DateTime.parse(ride.date);
+
+          final timeParts = ride.time.split(' ');
+          final hm = timeParts[0].split(':');
+
+          int hour = int.parse(hm[0]);
+          int minute = int.parse(hm[1]);
+
+          // Handle AM/PM
+          if (timeParts[1] == "PM" && hour != 12) {
+            hour += 12;
+          } else if (timeParts[1] == "AM" && hour == 12) {
+            hour = 0;
+          }
+
+          rideDateTime = DateTime(
+            rideDate.year,
+            rideDate.month,
+            rideDate.day,
+            hour,
+            minute,
+          );
+        } catch (e) {
+          // If parsing fails, exclude ride
+          return false;
+        }
+
+        // ✅ Only future rides
+        final isFutureRide = rideDateTime.isAfter(now);
+
+        return matchFrom &&
+            matchTo &&
+            matchDate &&
+            hasSeats &&
+            notMyRide &&
+            isFutureRide;
       }).toList();
     });
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../data/dummy_rides.dart';
+import '../../data/ride_requests.dart';
 import '../../models/ride_model.dart';
+import '../../models/request_model.dart';
 import '../../data/dummy_users.dart';
 
 class MyRequestsScreen extends StatefulWidget {
@@ -11,7 +13,6 @@ class MyRequestsScreen extends StatefulWidget {
 }
 
 class _MyRequestsScreenState extends State<MyRequestsScreen> {
-
   List<Map<String, dynamic>> myRequests = [];
 
   @override
@@ -26,12 +27,34 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
 
     List<Map<String, dynamic>> temp = [];
 
-    for (var ride in dummyRides) {
-      for (var passenger in ride.passengers) {
-        if (passenger.userId == userId) {
+    for (var request in rideRequests) {
+      if (request.userId == userId) {
+        final ride = dummyRides.firstWhere(
+              (r) => r.rideId == request.rideId,
+          orElse: () => Ride(
+            rideId: '',
+            driverId: '',
+            driverName: '',
+            driverPhoto: '',
+            driverRating: 0,
+            from: '',
+            destination: '',
+            date: '',
+            time: '',
+            totalSeats: 0,
+            availableSeats: 0,
+            price: 0,
+            status: '',
+            notes: '',
+            pendingRequests: 0,
+            passengers: [],
+          ),
+        );
+
+        if (ride.rideId.isNotEmpty) {
           temp.add({
             "ride": ride,
-            "request": passenger,
+            "request": request,
           });
         }
       }
@@ -42,44 +65,46 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
     });
   }
 
-  // void cancelRequest(Ride ride, PassengerInfo request) {
-  //   setState(() {
-  //     ride.passengers.removeWhere((p) => p.userId == request.userId);
-  //     ride.availableSeats = (ride.availableSeats ?? 0) + 1;
-  //   });
-  //
-  //   loadRequests();
-  //
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(content: Text("Request cancelled")),
-  //   );
-  // }
+  void cancelRequest(Ride ride, RideRequest request) {
+    final index = rideRequests.indexWhere(
+          (r) =>
+      r.rideId == request.rideId &&
+          r.userId == request.userId,
+    );
 
-  //.................................................
-  void cancelRequest(Ride ride, PassengerInfo request) {
-    final rideIndex = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
+    if (index == -1) return;
 
-    if (rideIndex != -1) {
-      final currentRide = dummyRides[rideIndex];
+    // ✅ If accepted → remove from passengers + free seat
+    if (request.status == "accepted") {
+      final rideIndex =
+      dummyRides.indexWhere((r) => r.rideId == ride.rideId);
 
-      // ✅ Explicit type declaration
-      List<PassengerInfo> updatedPassengers = List.from(currentRide.passengers);
-      updatedPassengers.removeWhere((p) => p.userId == request.userId);
+      if (rideIndex != -1) {
+        final currentRide = dummyRides[rideIndex];
 
-      final updatedRide = currentRide.copyWith(
-        passengers: updatedPassengers,
-        pendingRequests: currentRide.pendingRequests - 1,
-      );
+        final updatedPassengers =
+        List<PassengerInfo>.from(currentRide.passengers)
+          ..removeWhere((p) => p.userId == request.userId);
 
-      dummyRides[rideIndex] = updatedRide;
+        final updatedRide = currentRide.copyWith(
+          passengers: updatedPassengers,
+          availableSeats: currentRide.availableSeats + 1, // ✅ FIX
+        );
 
-      loadRequests();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Request cancelled")),
-      );
+        dummyRides[rideIndex] = updatedRide;
+      }
     }
+
+    // ❌ Remove request
+    rideRequests.removeAt(index);
+
+    loadRequests();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Request cancelled")),
+    );
   }
+
   Color getStatusColor(String status) {
     switch (status) {
       case "accepted":
@@ -95,26 +120,29 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("My Requests")),
-
       body: myRequests.isEmpty
           ? const Center(child: Text("No requests yet"))
           : ListView.builder(
         itemCount: myRequests.length,
         itemBuilder: (context, index) {
           final ride = myRequests[index]["ride"] as Ride;
-          final request = myRequests[index]["request"] as PassengerInfo;
+          final request =
+          myRequests[index]["request"] as RideRequest;
 
           return Card(
             margin: const EdgeInsets.all(12),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                CrossAxisAlignment.start,
                 children: [
-
                   // Driver
-                  Text("Driver: ${ride.driverName}",
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    "Driver: ${ride.driverName}",
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold),
+                  ),
 
                   const SizedBox(height: 6),
 
@@ -130,7 +158,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                       Text(
                         request.status,
                         style: TextStyle(
-                          color: getStatusColor(request.status),
+                          color: getStatusColor(
+                              request.status),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -140,7 +169,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                   const SizedBox(height: 10),
 
                   // Cancel Button
-                  if (request.status == "pending")
+                  if (request.status == "pending" ||
+                      request.status == "accepted")
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
@@ -148,7 +178,8 @@ class _MyRequestsScreenState extends State<MyRequestsScreen> {
                             cancelRequest(ride, request),
                         child: const Text(
                           "Cancel Request",
-                          style: TextStyle(color: Colors.red),
+                          style:
+                          TextStyle(color: Colors.red),
                         ),
                       ),
                     ),
