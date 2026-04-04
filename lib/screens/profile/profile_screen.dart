@@ -325,9 +325,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _saveProfile() {
-    // ✅ VALIDATION: If switching to Driver mode, check vehicle details
-    if (_isDriver && !_isEditing) {
-      // Check if vehicle details are filled
+    // ✅ VALIDATION: If saving as Driver, check vehicle details
+    if (_isDriver) {
       if (_vehicleTypeController.text.trim().isEmpty ||
           _vehicleModelController.text.trim().isEmpty ||
           _vehicleColorController.text.trim().isEmpty ||
@@ -341,10 +340,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             duration: Duration(seconds: 3),
           ),
         );
-        return;  // ❌ Don't save
+        return;
       }
 
-      // Validate seats are between 1-4
       int seats = int.tryParse(_vehicleSeatsController.text) ?? 0;
       if (seats < 1 || seats > 4) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -354,11 +352,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             duration: Duration(seconds: 3),
           ),
         );
-        return;  // ❌ Don't save
+        return;
       }
     }
 
-    // ✅ Proceed with saving
     setState(() {
       _user['name'] = _nameController.text;
       _user['phone'] = _phoneController.text;
@@ -376,7 +373,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isEditing = false;
     });
 
-    // Update the current user's data in the dummyUsers list
     updateCurrentUser(_user);
 
     ScaffoldMessenger.of(context).showSnackBar(
