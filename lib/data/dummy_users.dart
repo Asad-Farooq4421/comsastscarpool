@@ -4,7 +4,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'student@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'John Doe',
-    'photo': 'https://i.pravatar.cc/150?img=5',  // ✅ ADDED
+    'photo': 'https://i.pravatar.cc/150?img=5',
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 1234567',
     'bio': 'Computer Science student, looking for ride buddies!',
