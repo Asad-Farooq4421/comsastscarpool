@@ -10,7 +10,6 @@ import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
 
 import 'ride_details_screen.dart';
-import '../../utils/routes.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback onSwitch;
