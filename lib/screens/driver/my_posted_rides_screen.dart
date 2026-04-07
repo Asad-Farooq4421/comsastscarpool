@@ -347,7 +347,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
               if (hasPendingRequests)
                 Expanded(
                   child: CustomButton(
-                    text: 'View Requests',
+                    text: 'Requests',
                     onPressed: () {
                       Navigator.pushNamed(
                         context,
