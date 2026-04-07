@@ -779,7 +779,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 _buildStatCard('Rides Taken', _user['ridesAsPassenger']?.toString() ?? '0', Icons.person),
                 const SizedBox(width: 16),
-                _buildStatCard('Passenger Rating', _user['passengerRating']?.toString() ?? '0.0', Icons.star),
+                _buildStatCard('Rating', _user['passengerRating']?.toString() ?? '0.0', Icons.star),
                 const SizedBox(width: 16),
                 _buildStatCard('Saved Routes', _user['savedRoutes']?.toString() ?? '0', Icons.bookmark),
               ],
