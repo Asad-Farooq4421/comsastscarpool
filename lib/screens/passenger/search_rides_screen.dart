@@ -220,85 +220,85 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // HEADER
   Widget _buildHeader() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      return Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.primary, AppColors.primaryLight],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(32),
+            bottomRight: Radius.circular(32),
+          ),
         ),
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title + Notification
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Find a Ride",
-                style: AppTextStyles.heading2.copyWith(color: Colors.white),
-              ),
-              Stack(
-                children: const [
-                  Icon(Icons.notifications, color: Colors.white),
-                  Positioned(
-                    right: 0,
-                    child: CircleAvatar(
-                      radius: 6,
-                      backgroundColor: Colors.red,
+        padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row (Title + Notification)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Passenger Dashboard',
+                      style: AppTextStyles.heading2.copyWith(color: Colors.white),
                     ),
-                  )
-                ],
-              )
-            ],
-          ),
+                    Text(
+                      'Find and book rides',
+                      style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+                    ),
+                  ],
+                ),
+                Stack(
+                  children: [
+                    const Icon(Icons.notifications_none,
+                        color: Colors.white, size: 32),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Text(
+                          '2',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
-          const SizedBox(height: 6),
+            const SizedBox(height: 24),
 
-          Text(
-            "Search by route and date",
-            style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Role Toggle
-          RoleToggle(
-            selectedRole: selectedRole,
-            isDriverEnabled: true,
-            onChanged: (role) {
-              if (role == UserRole.driver) {
-                if (isDriverUser) {
-                  // Already a driver - go to driver home
-                  widget.onSwitch();
-                } else {
-                  print('isDriverUser is false, showing popup');
-                  // Not a driver yet - check if popup already shown
-                  if (!_hasShownDriverPopup) {
-                    _showDriverModeDialog();
-                  } else {
-                    // ✅ Popup already shown before, go to profile via callback
-                    widget.onNavigateToProfile();
+            // Role Toggle (Centered)
+            Center(
+              child: RoleToggle(
+                selectedRole: selectedRole,
+                onChanged: (role) {
+                  if (role == UserRole.driver) {
+                    widget.onSwitch();
                   }
-                }
-
-              } else {
-                setState(() {
-                  selectedRole = UserRole.passenger;
-                });
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
   // SEARCH FORM
   Widget _buildSearchForm() {
