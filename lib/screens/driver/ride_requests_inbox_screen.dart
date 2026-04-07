@@ -262,7 +262,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                 child: OutlinedButton.icon(
                   onPressed: () => _showPassengerProfile(userData),
                   icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('View Profile'),
+                  label: const Text('Profile'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: BorderSide(color: Colors.grey.shade200),
