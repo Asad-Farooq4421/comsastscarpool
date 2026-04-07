@@ -41,6 +41,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     isDriverUser = isCurrentUserDriver();
+    print('🔍 initState - isDriverUser: $isDriverUser');
   }
   @override
   void didChangeDependencies() {
@@ -136,7 +137,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final to = toController.text.toLowerCase().trim();
     final date = dateController.text.trim();
 
-    final currentUserId = currentUser?['email'] ?? "unknown_user";
+    final currentUserId = getCurrentUserId();
 
     final now = DateTime.now();
 
@@ -218,86 +219,103 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   // HEADER
+  // HEADER
   Widget _buildHeader() {
-      return Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryLight],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(32),
-            bottomRight: Radius.circular(32),
-          ),
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row (Title + Notification)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Passenger Dashboard',
-                      style: AppTextStyles.heading2.copyWith(color: Colors.white),
-                    ),
-                    Text(
-                      'Find and book rides',
-                      style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
-                    ),
-                  ],
-                ),
-                Stack(
-                  children: [
-                    const Icon(Icons.notifications_none,
-                        color: Colors.white, size: 32),
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Text(
-                          '2',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Row (Title + Notification)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Passenger Dashboard',
+                    style: AppTextStyles.heading2.copyWith(color: Colors.white),
+                  ),
+                  Text(
+                    'Find and book rides',
+                    style: AppTextStyles.bodyMedium.copyWith(color: Colors.white70),
+                  ),
+                ],
+              ),
+              Stack(
+                children: [
+                  const Icon(Icons.notifications_none,
+                      color: Colors.white, size: 32),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Text(
+                        '2',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Role Toggle (Centered)
-            Center(
-              child: RoleToggle(
-                selectedRole: selectedRole,
-                onChanged: (role) {
-                  if (role == UserRole.driver) {
-                    widget.onSwitch();
-                  }
-                },
+                  ),
+                ],
               ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // Role Toggle (Centered) - ✅ FIXED LOGIC
+          Center(
+            child: RoleToggle(
+              selectedRole: selectedRole,
+              onChanged: (role) {
+                if (role == UserRole.driver) {
+                  // ✅ Check if user is already a driver
+                  if (isDriverUser) {
+                    // Already a driver - go to driver home
+                    widget.onSwitch();
+                  } else {
+                    // Not a driver yet - check if popup already shown
+                    if (!_hasShownDriverPopup) {
+                      _showDriverModeDialog();
+                    } else {
+                      // Popup already shown before, just go to profile
+                      widget.onNavigateToProfile();
+                    }
+                  }
+                } else {
+                  setState(() {
+                    selectedRole = UserRole.passenger;
+                  });
+                }
+              },
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 
   // SEARCH FORM
   Widget _buildSearchForm() {
