@@ -380,7 +380,7 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
                 child: OutlinedButton.icon(
                   onPressed: () => _showPassengerProfile(userData),
                   icon: const Icon(Icons.visibility_outlined, size: 18),
-                  label: const Text('View Profile'),
+                  label: const Text('Profile'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textPrimary,
                     side: BorderSide(color: Colors.grey.shade200),
@@ -624,11 +624,11 @@ class _RideRequestsInboxScreenState extends State<RideRequestsInboxScreen>
             const SizedBox(height: 8),
             Text('⭐ Rating: ${userData['passengerRating']}'),
             const SizedBox(height: 8),
-            Text('🚗 Rides taken: ${userData['ridesAsPassenger']}'),
+            Text('Rides taken: ${userData['ridesAsPassenger']}'),
             const SizedBox(height: 8),
-            Text('📧 ${userData['email']}'),
+            Text('${userData['email']}'),
             const SizedBox(height: 8),
-            Text('📚 ${userData['bio'] ?? 'No bio added'}'),
+            Text('${userData['bio'] ?? 'No bio added'}'),
           ],
         ),
         actions: [
