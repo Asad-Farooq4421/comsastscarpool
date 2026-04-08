@@ -150,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
             const SizedBox(height: 30),
 
-            // Next/Get Started Button (only show from page 2 onward)
+
             // Next/Get Started Button (only show from page 2 onward)
             if (_currentPage != 0)
               Padding(

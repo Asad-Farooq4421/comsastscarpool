@@ -102,10 +102,9 @@ class _SignupScreenState extends State<SignupScreen> {
             'university': 'COMSATS Islamabad',
           };
 
-          // ==================== USE THIS INSTEAD OF addUser() ====================
+
           // Add user and set as current user
           addUserAndSetCurrent(newUser);
-          // ======================================================================
 
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

@@ -13,12 +13,12 @@ import 'ride_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback onSwitch;
-  final VoidCallback onNavigateToProfile;  // ← ADD THIS
+  final VoidCallback onNavigateToProfile;
 
   const SearchScreen({
     super.key,
     required this.onSwitch,
-    required this.onNavigateToProfile,  // ← ADD THIS
+    required this.onNavigateToProfile,
   });
 
   @override
@@ -46,7 +46,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Refresh user status when returning to this screen (after profile update)
+
     isDriverUser = isCurrentUserDriver();
     print('didChangeDependencies - isDriverUser: $isDriverUser');
   }
@@ -122,12 +122,11 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     ).then((confirmed) {
       if (confirmed == true) {
-        // ✅ ONLY set to true when user clicks "Yes, Continue"
+
         _hasShownDriverPopup = true;
-        // ✅ Navigate to profile via callback instead of direct navigation
+
         widget.onNavigateToProfile();
       }
-      // If user clicks "Not Now", _hasShownDriverPopup remains false
     });
   }
 
@@ -157,7 +156,6 @@ class _SearchScreenState extends State<SearchScreen> {
 
         final notMyRide = ride.driverId != currentUserId;
 
-        // ✅ NEW: Convert ride date + time into DateTime
         DateTime rideDateTime;
 
         try {
@@ -188,7 +186,7 @@ class _SearchScreenState extends State<SearchScreen> {
           return false;
         }
 
-        // ✅ Only future rides
+
         final isFutureRide = rideDateTime.isAfter(now);
 
         return matchFrom &&
@@ -218,7 +216,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // HEADER
+
   // HEADER
   Widget _buildHeader() {
     return Container(
@@ -291,7 +289,7 @@ class _SearchScreenState extends State<SearchScreen> {
               selectedRole: selectedRole,
               onChanged: (role) {
                 if (role == UserRole.driver) {
-                  // ✅ Check if user is already a driver
+                  //  Check if user is already a driver
                   if (isDriverUser) {
                     // Already a driver - go to driver home
                     widget.onSwitch();
