@@ -77,6 +77,7 @@ class AppUser {
       ) ??
           0,
 
+
       driverRating:
       (json['driverRating'] ?? 0)
           .toDouble(),
