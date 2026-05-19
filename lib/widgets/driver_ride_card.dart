@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../models/ride_model.dart';
 import '../constants/colors.dart';
 import '../constants/text_styles.dart';
-import '../data/ride_requests.dart';
+import '../services/ride_service.dart';
 
-class DriverRideCard extends StatelessWidget {
+class DriverRideCard extends StatefulWidget {
   final Ride ride;
   final VoidCallback onViewRequests;
   final VoidCallback onEdit;
@@ -18,16 +18,46 @@ class DriverRideCard extends StatelessWidget {
     required this.onDelete,
   });
 
-  // Get pending requests count from rideRequests list
-  int get pendingRequestsCount {
-    return rideRequests.where(
-            (r) => r.rideId == ride.rideId && r.status == 'pending'
-    ).length;
+  @override
+  State<DriverRideCard> createState() => _DriverRideCardState();
+}
+
+class _DriverRideCardState extends State<DriverRideCard> {
+  final RideService _rideService = RideService();
+  int _pendingRequestsCount = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPendingRequestsCount();
+  }
+
+  Future<void> _loadPendingRequestsCount() async {
+    try {
+      final ride = await _rideService.getRideById(widget.ride.rideId);
+      if (ride != null) {
+        final pendingCount = ride.passengers.where((p) => p.status == 'pending').length;
+        setState(() {
+          _pendingRequestsCount = pendingCount;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading pending requests: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final pendingCount = pendingRequestsCount;
+    final pendingCount = _pendingRequestsCount;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -37,7 +67,7 @@ class DriverRideCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -52,15 +82,15 @@ class DriverRideCard extends StatelessWidget {
               Row(
                 children: [
                   _buildBadge(
-                    ride.status,
-                    ride.status == 'active' ? Colors.blue.shade50 : Colors.green.shade50,
-                    ride.status == 'active' ? Colors.blue : Colors.green,
+                    _getStatusText(widget.ride.status),
+                    _getStatusColor(widget.ride.status).withOpacity(0.1),
+                    _getStatusColor(widget.ride.status),
                   ),
                   if (pendingCount > 0) ...[
                     const SizedBox(width: 8),
                     _buildBadge(
                       '$pendingCount New ${pendingCount == 1 ? 'Request' : 'Requests'}',
-                      Colors.orange.shade50,
+                      Colors.orange.withOpacity(0.1),
                       Colors.orange,
                     ),
                   ],
@@ -89,14 +119,14 @@ class DriverRideCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ride.from,
+                      widget.ride.from,
                       style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      ride.destination,
+                      widget.ride.destination,
                       style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w500),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -110,10 +140,10 @@ class DriverRideCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildIconText(Icons.access_time, ride.time),
-              _buildIconText(Icons.people_outline, '${ride.filledSeats}/${ride.totalSeats} filled'),
+              _buildIconText(Icons.access_time, widget.ride.time),
+              _buildIconText(Icons.people_outline, '${widget.ride.filledSeats}/${widget.ride.totalSeats} filled'),
               Text(
-                'Rs. ${ride.price}/seat',
+                'Rs. ${widget.ride.price}/seat',
                 style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
@@ -124,11 +154,11 @@ class DriverRideCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              // ✅ "View Requests" button - ALWAYS VISIBLE
+              // "View Requests" button - ALWAYS VISIBLE
               Expanded(
                 flex: 2,
                 child: ElevatedButton(
-                  onPressed: onViewRequests,
+                  onPressed: widget.onViewRequests,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -144,7 +174,7 @@ class DriverRideCard extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: onEdit,
+                  onPressed: widget.onEdit,
                   icon: const Icon(Icons.edit_outlined, size: 18),
                   label: const Text('Edit'),
                   style: OutlinedButton.styleFrom(
@@ -162,7 +192,7 @@ class DriverRideCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: IconButton(
-                  onPressed: onDelete,
+                  onPressed: widget.onDelete,
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   constraints: const BoxConstraints(),
@@ -173,6 +203,36 @@ class DriverRideCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'scheduled':
+        return 'Scheduled';
+      case 'active':
+        return 'Active';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'scheduled':
+        return Colors.green;
+      case 'active':
+        return Colors.blue;
+      case 'completed':
+        return Colors.grey;
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildBadge(String text, Color bgColor, Color textColor) {

@@ -25,7 +25,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'ali@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'Ali Khan',
-    'photo': 'https://i.pravatar.cc/150?img=1',
+    'photo': 'https://i.pravatar.cc/150?img=1',  // ✅ ADDED
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 7654321',
     'bio': 'Senior student, available for rides daily',
@@ -46,7 +46,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'sara@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'Sara Ahmed',
-    'photo': 'https://i.pravatar.cc/150?img=2',
+    'photo': 'https://i.pravatar.cc/150?img=2',  // ✅ ADDED
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 9876543',
     'bio': 'Freshman, looking for safe rides',
@@ -67,7 +67,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'fatima@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'Fatima Khan',
-    'photo': 'https://i.pravatar.cc/150?img=4',
+    'photo': 'https://i.pravatar.cc/150?img=4',  // ✅ ADDED
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 5551111',
     'bio': 'BS Economics student, need daily ride to campus',
@@ -88,7 +88,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'ahmed@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'Ahmed Raza',
-    'photo': 'https://i.pravatar.cc/150?img=10',
+    'photo': 'https://i.pravatar.cc/150?img=10',  // ✅ ADDED
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 5552222',
     'bio': 'Electrical Engineering, have a car, can give rides',
@@ -109,7 +109,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'zainab@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'Zainab Ali',
-    'photo': 'https://i.pravatar.cc/150?img=6',
+    'photo': 'https://i.pravatar.cc/150?img=6',  // ✅ ADDED
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 5553333',
     'bio': 'Psychology student, prefer female driver only',
@@ -130,7 +130,7 @@ final List<Map<String, dynamic>> dummyUsers = [
     'email': 'bilal@isbstudent.comsats.edu.pk',
     'password': '123456',
     'name': 'Bilal Ahmed',
-    'photo': 'https://i.pravatar.cc/150?img=3',
+    'photo': 'https://i.pravatar.cc/150?img=3',  // ✅ ADDED
     'university': 'COMSATS Islamabad',
     'phone': '+92 300 5554444',
     'bio': 'Have a bike, can take 1 passenger',
@@ -152,7 +152,7 @@ final List<Map<String, dynamic>> dummyUsers = [
 // ==================== CURRENT USER TRACKING ====================
 
 // Track the currently logged-in user's INDEX
-int _currentUserIndex = -1;
+int _currentUserIndex = -1;  // -1 means no user logged in
 
 // Get current user's INDEX
 int getCurrentUserIndex() {

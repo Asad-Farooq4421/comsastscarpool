@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../utils/routes.dart';
@@ -11,19 +13,213 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   bool _notificationsEnabled = true;
   bool _rideRemindersEnabled = true;
   bool _chatNotificationsEnabled = true;
   bool _darkModeEnabled = false;
   bool _shareLocationEnabled = true;
 
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    try {
+      DatabaseEvent event = await _databaseRef
+          .child('users/${currentUser.uid}/settings')
+          .once();
+      DataSnapshot snapshot = event.snapshot;
+
+      if (snapshot.value != null) {
+        Map<String, dynamic> settings = Map<String, dynamic>.from(snapshot.value as Map);
+        setState(() {
+          _notificationsEnabled = settings['notificationsEnabled'] ?? true;
+          _rideRemindersEnabled = settings['rideRemindersEnabled'] ?? true;
+          _chatNotificationsEnabled = settings['chatNotificationsEnabled'] ?? true;
+          _darkModeEnabled = settings['darkModeEnabled'] ?? false;
+          _shareLocationEnabled = settings['shareLocationEnabled'] ?? true;
+          _isLoading = false;
+        });
+      } else {
+        // No settings saved yet, save defaults
+        await _saveAllSettings();
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading settings: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveSetting(String key, dynamic value) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      await _databaseRef
+          .child('users/${currentUser.uid}/settings/$key')
+          .set(value);
+    } catch (e) {
+      print('Error saving setting $key: $e');
+      _showError('Failed to save settings');
+    }
+  }
+
+  Future<void> _saveAllSettings() async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final settings = {
+        'notificationsEnabled': _notificationsEnabled,
+        'rideRemindersEnabled': _rideRemindersEnabled,
+        'chatNotificationsEnabled': _chatNotificationsEnabled,
+        'darkModeEnabled': _darkModeEnabled,
+        'shareLocationEnabled': _shareLocationEnabled,
+      };
+
+      await _databaseRef
+          .child('users/${currentUser.uid}/settings')
+          .set(settings);
+    } catch (e) {
+      print('Error saving all settings: $e');
+    }
+  }
+
+  Future<void> _toggleNotification(bool value) async {
+    setState(() {
+      _notificationsEnabled = value;
+    });
+    await _saveSetting('notificationsEnabled', value);
+
+    if (value) {
+      _showSuccess('Notifications enabled');
+    } else {
+      _showSuccess('Notifications disabled');
+    }
+  }
+
+  Future<void> _toggleRideReminders(bool value) async {
+    setState(() {
+      _rideRemindersEnabled = value;
+    });
+    await _saveSetting('rideRemindersEnabled', value);
+  }
+
+  Future<void> _toggleChatNotifications(bool value) async {
+    setState(() {
+      _chatNotificationsEnabled = value;
+    });
+    await _saveSetting('chatNotificationsEnabled', value);
+  }
+
+  Future<void> _toggleDarkMode(bool value) async {
+    setState(() {
+      _darkModeEnabled = value;
+    });
+    await _saveSetting('darkModeEnabled', value);
+
+    // TODO: Apply theme change across the app
+    if (value) {
+      _showInfo('Dark mode coming in next update');
+    }
+  }
+
+  Future<void> _toggleShareLocation(bool value) async {
+    setState(() {
+      _shareLocationEnabled = value;
+    });
+    await _saveSetting('shareLocationEnabled', value);
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showInfo(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showInfoDialog(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Settings'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadSettings,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -37,44 +233,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Push Notifications',
                   subtitle: 'Receive notifications about rides and messages',
                   value: _notificationsEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _notificationsEnabled = value;
-                    });
-                  },
+                  onChanged: _toggleNotification,
                 ),
                 _buildSwitchTile(
                   icon: Icons.timer,
                   title: 'Ride Reminders',
                   subtitle: 'Get reminders 15 minutes before ride',
                   value: _rideRemindersEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _rideRemindersEnabled = value;
-                    });
-                  },
+                  onChanged: _toggleRideReminders,
                 ),
                 _buildSwitchTile(
                   icon: Icons.chat,
                   title: 'Chat Notifications',
                   subtitle: 'Get notified when you receive new messages',
                   value: _chatNotificationsEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _chatNotificationsEnabled = value;
-                    });
-                  },
+                  onChanged: _toggleChatNotifications,
                 ),
                 _buildSwitchTile(
                   icon: Icons.dark_mode,
                   title: 'Dark Mode',
                   subtitle: 'Use a dark theme for the app interface',
                   value: _darkModeEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _darkModeEnabled = value;
-                    });
-                  },
+                  onChanged: _toggleDarkMode,
                 ),
               ],
             ),
@@ -90,11 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Share Location',
                   subtitle: 'Allow app to access your location for rides',
                   value: _shareLocationEnabled,
-                  onChanged: (value) {
-                    setState(() {
-                      _shareLocationEnabled = value;
-                    });
-                  },
+                  onChanged: _toggleShareLocation,
                 ),
 
                 _buildNavigationTile(
@@ -120,11 +296,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Blocked Users',
                   subtitle: 'View and manage blocked users',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Blocked users feature coming soon'),
-                        duration: Duration(seconds: 1),
-                      ),
+                    _showInfoDialog(
+                        'Blocked Users',
+                        'This feature will be available soon.\n\n'
+                            'You will be able to block users who:\n'
+                            '• Cancel rides frequently\n'
+                            '• Are disrespectful\n'
+                            '• Violate safety guidelines'
                     );
                   },
                 ),
@@ -200,12 +378,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Rate the App',
                   subtitle: 'Share your experience',
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Thank you for rating!'),
-                        duration: Duration(seconds: 1),
-                      ),
+                    _showInfoDialog(
+                        'Rate the App',
+                        'Thank you for using Campus Carpool!\n\n'
+                            'Your rating helps us improve.\n\n'
+                            'Please rate us on the app store:'
                     );
+                    _showSuccess('Thank you for rating!');
                   },
                 ),
               ],
@@ -226,6 +405,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   icon: Icons.business,
                   title: 'Developed by',
                   subtitle: 'Campus Carpool Team',
+                ),
+                _buildInfoTile(
+                  icon: Icons.email,
+                  title: 'Contact',
+                  subtitle: 'support@campuscarpool.com',
                 ),
               ],
             ),
@@ -308,22 +492,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       leading: Icon(icon, color: AppColors.primary),
       title: Text(title, style: AppTextStyles.bodyLarge),
       subtitle: Text(subtitle, style: AppTextStyles.caption),
-    );
-  }
-
-  void _showInfoDialog(String title, String content) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
     );
   }
 }

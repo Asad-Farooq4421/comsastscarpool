@@ -1,9 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
 import '../../models/ride_model.dart';
-import '../../data/dummy_rides.dart';
-import '../../data/dummy_users.dart';
+import '../../services/ride_service.dart';
+import '../../services/user_service.dart';
 import '../../widgets/custom_button.dart';
 import '../../utils/routes.dart';
 
@@ -15,55 +16,148 @@ class MyPostedRidesScreen extends StatefulWidget {
 }
 
 class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
-  List<Ride> myRides = [];
-  bool isLoading = true;
+  final RideService _rideService = RideService();
+  final UserService _userService = UserService();
+
+  List<Ride> _myRides = [];
+  bool _isLoading = true;
+  String? _currentUserId;
+  String? _driverName;
 
   @override
   void initState() {
     super.initState();
-    _loadMyRides();
+    _loadCurrentUser();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh when coming back from edit/post
-    _loadMyRides();
+    if (_currentUserId != null) {
+      _loadMyRides();
+    }
   }
 
-  void _loadMyRides() {
-    final currentDriverId = getCurrentUserId(); // Returns email of logged-in user
+  Future<void> _loadCurrentUser() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      setState(() {
+        _currentUserId = currentUser.uid;
+      });
+
+      // Load user profile for name
+      final userProfile = await _userService.getUserProfile(_currentUserId!);
+      setState(() {
+        _driverName = userProfile?.name ?? 'Driver';
+      });
+
+      await _loadMyRides();
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadMyRides() async {
+    if (_currentUserId == null) return;
 
     setState(() {
-      myRides = dummyRides.where((ride) =>
-      ride.driverId == currentDriverId
-      ).toList();
-      isLoading = false;
+      _isLoading = true;
     });
+
+    try {
+      final rides = await _rideService.getRidesByDriverId(_currentUserId!);
+      setState(() {
+        _myRides = rides;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading my rides: $e');
+      setState(() {
+        _myRides = [];
+        _isLoading = false;
+      });
+    }
   }
 
-  int get totalEarnings {
+  int get _totalEarnings {
     int earnings = 0;
-    for (var ride in myRides) {
+    for (var ride in _myRides) {
       earnings += ride.filledSeats * ride.price;
     }
     return earnings;
   }
 
-  double get averageRating {
-    if (myRides.isEmpty) return 0;
+  double get _averageRating {
+    if (_myRides.isEmpty) return 0;
     double total = 0;
-    for (var ride in myRides) {
+    for (var ride in _myRides) {
       total += ride.driverRating;
     }
-    return total / myRides.length;
+    return total / _myRides.length;
+  }
+
+  Future<void> _deleteRide(Ride ride) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await _rideService.deleteRide(ride.rideId);
+      await _loadMyRides();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ride deleted successfully'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _showDeleteConfirmation(Ride ride) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Ride'),
+        content: const Text('Are you sure you want to delete this ride? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteRide(ride);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = getCurrentUser();
-    final driverName = currentUser?['name'] ?? 'Driver';
-
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
@@ -72,38 +166,37 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
         foregroundColor: AppColors.textPrimary,
         elevation: 1,
         actions: [
-          // Post Ride Button in AppBar
           IconButton(
             icon: const Icon(Icons.add, color: AppColors.primary),
             onPressed: () async {
               final result = await Navigator.pushNamed(context, AppRoutes.postRide);
-              if (result == true) {
-                _loadMyRides(); // Refresh list
+              if (result == true && mounted) {
+                await _loadMyRides();
               }
             },
             tooltip: 'Post New Ride',
           ),
         ],
       ),
-      body: isLoading
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : myRides.isEmpty
-          ? _buildEmptyState(driverName)
+          : _myRides.isEmpty
+          ? _buildEmptyState()
           : Column(
         children: [
-          // Stats Summary
           _buildStatsSummary(),
           const SizedBox(height: 8),
-
-          // Rides List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: myRides.length,
-              itemBuilder: (context, index) {
-                final ride = myRides[index];
-                return _buildRideCard(ride);
-              },
+            child: RefreshIndicator(
+              onRefresh: _loadMyRides,
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: _myRides.length,
+                itemBuilder: (context, index) {
+                  final ride = _myRides[index];
+                  return _buildRideCard(ride);
+                },
+              ),
             ),
           ),
         ],
@@ -128,27 +221,27 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
         children: [
           _buildStatItem(
             icon: Icons.directions_car,
-            value: '${myRides.length}',
+            value: '${_myRides.length}',
             label: 'Total Rides',
           ),
           Container(
             width: 1,
             height: 40,
-            color: Colors.white.withAlpha(77),
+            color: Colors.white.withOpacity(0.3),
           ),
           _buildStatItem(
             icon: Icons.star,
-            value: averageRating.toStringAsFixed(1),
+            value: _averageRating.toStringAsFixed(1),
             label: 'Avg Rating',
           ),
           Container(
             width: 1,
             height: 40,
-            color: Colors.white.withAlpha(77),
+            color: Colors.white.withOpacity(0.3),
           ),
           _buildStatItem(
             icon: Icons.attach_money,
-            value: 'Rs. $totalEarnings',
+            value: 'Rs. $_totalEarnings',
             label: 'Total Earnings',
           ),
         ],
@@ -184,7 +277,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
     );
   }
 
-  Widget _buildEmptyState(String driverName) {
+  Widget _buildEmptyState() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -211,7 +304,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Hello $driverName, start earning by posting your first ride.',
+              'Hello $_driverName, start earning by posting your first ride.',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSecondary,
               ),
@@ -222,8 +315,8 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
               text: 'Post Your First Ride',
               onPressed: () async {
                 final result = await Navigator.pushNamed(context, AppRoutes.postRide);
-                if (result == true) {
-                  _loadMyRides();
+                if (result == true && mounted) {
+                  await _loadMyRides();
                 }
               },
             ),
@@ -246,7 +339,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(13),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -283,7 +376,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Route (From → To in single line)
+          // Route (From → To)
           Row(
             children: [
               const Icon(Icons.circle, size: 8, color: AppColors.primary),
@@ -348,12 +441,13 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
                 Expanded(
                   child: CustomButton(
                     text: 'Requests',
-                    onPressed: () {
-                      Navigator.pushNamed(
+                    onPressed: () async {
+                      await Navigator.pushNamed(
                         context,
                         AppRoutes.rideRequests,
                         arguments: ride,
-                      ).then((_) => _loadMyRides());
+                      );
+                      await _loadMyRides();
                     },
                     backgroundColor: AppColors.primary,
                   ),
@@ -362,15 +456,16 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
               Expanded(
                 child: CustomButton(
                   text: 'Edit',
-                  onPressed: () {
-                    Navigator.pushNamed(
+                  onPressed: () async {
+                    await Navigator.pushNamed(
                       context,
                       AppRoutes.editRide,
                       arguments: ride,
-                    ).then((_) => _loadMyRides());
+                    );
+                    await _loadMyRides();
                   },
-                  isOutlined: false,  // ✅ Solid button
-                  backgroundColor: AppColors.primary,  // ✅ Same as Request button
+                  isOutlined: false,
+                  backgroundColor: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 8),
@@ -424,7 +519,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withAlpha(25),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -442,7 +537,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.orange.withAlpha(25),
+        color: Colors.orange.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -470,38 +565,6 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  void _showDeleteConfirmation(Ride ride) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Ride'),
-        content: const Text('Are you sure you want to delete this ride? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              // Use store logic to delete
-              deleteRide(ride.rideId);
-              Navigator.pop(context);
-              _loadMyRides();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Ride deleted successfully'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -1,11 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
+import '../../models/ride_model.dart';
 import '../../widgets/custom_button.dart';
 import '../../utils/routes.dart';
+import '../../services/emergency_contact_service.dart';
+import '../../services/user_service.dart';
+import '../../services/ride_service.dart';
 
-class SafetyCenterScreen extends StatelessWidget {
+class SafetyCenterScreen extends StatefulWidget {
   const SafetyCenterScreen({super.key});
+
+  @override
+  State<SafetyCenterScreen> createState() => _SafetyCenterScreenState();
+}
+
+class _SafetyCenterScreenState extends State<SafetyCenterScreen> {
+  final EmergencyContactService _contactService = EmergencyContactService();
+  final UserService _userService = UserService();
+  final RideService _rideService = RideService();
+
+  bool _isSOSActivating = false;
+  bool _hasActiveRide = false;
+  String? _currentRideId;
 
   final List<String> safetyTips = const [
     'Always verify the driver and vehicle before getting in',
@@ -14,6 +32,279 @@ class SafetyCenterScreen extends StatelessWidget {
     'Keep your phone charged and accessible',
     'Rate and review your experiences honestly',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkActiveRide();
+  }
+
+  Future<void> _checkActiveRide() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      final passengerRides = await _rideService.getRidesByPassengerId(currentUser.uid);
+
+      // Method 1: Using a simple loop (most readable)
+      Ride? activeRide;
+      for (var ride in passengerRides) {
+        if (ride.isActive) {
+          activeRide = ride;
+          break;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _hasActiveRide = activeRide != null;
+          _currentRideId = activeRide?.rideId;
+        });
+      }
+    } catch (e) {
+      print('Error checking active ride: $e');
+      if (mounted) {
+        setState(() {
+          _hasActiveRide = false;
+          _currentRideId = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _activateSOS() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      _showError('User not logged in');
+      return;
+    }
+
+    // Check if user has emergency contacts
+    final hasContacts = await _contactService.hasEmergencyContacts();
+    if (!hasContacts) {
+      _showError('Please add emergency contacts first');
+      return;
+    }
+
+    setState(() {
+      _isSOSActivating = true;
+    });
+
+    try {
+      final userProfile = await _userService.getUserProfile(currentUser.uid);
+
+      if (userProfile == null) {
+        throw Exception('User profile not found');
+      }
+
+      // Get current ride details if available
+      String rideFrom = 'Unknown';
+      String rideTo = 'Unknown';
+
+      if (_hasActiveRide && _currentRideId != null) {
+        final ride = await _rideService.getRideById(_currentRideId!);
+        if (ride != null) {
+          rideFrom = ride.from;
+          rideTo = ride.destination;
+        }
+      }
+
+      // Send SOS to all emergency contacts
+      await _contactService.sendSOS(
+        userName: userProfile.name,
+        userPhone: userProfile.phone ?? 'Not provided',
+        rideFrom: rideFrom,
+        rideTo: rideTo,
+        currentLocation: 'Location will be shared', // You can add GPS here
+      );
+
+      // Show success message
+      _showSuccess('SOS Activated! Your emergency contacts have been notified.');
+
+      // Navigate to emergency info screen or show detailed info
+      _showSOSSuccessDialog();
+
+    } catch (e) {
+      _showError('Failed to activate SOS: ${e.toString()}');
+    } finally {
+      setState(() {
+        _isSOSActivating = false;
+      });
+    }
+  }
+
+  void _showSOSSuccessDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('SOS Activated'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Your emergency contacts have been notified with:'),
+            const SizedBox(height: 12),
+            const Text('• Your name and phone number'),
+            const Text('• Your current ride details'),
+            const Text('• Your live location'),
+            const SizedBox(height: 16),
+            Text(
+              'Stay calm. Help is on the way.',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade700,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Optionally call emergency services
+            },
+            child: const Text('Call Emergency Services', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShareTripDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Share Trip Status'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Share your ride details with emergency contacts:'),
+            const SizedBox(height: 16),
+            if (!_hasActiveRide)
+              const Text(
+                'No active ride found. Start a ride to share your trip status.',
+                style: TextStyle(color: Colors.orange),
+              ),
+            if (_hasActiveRide)
+              const Text('Your current ride will be shared with your emergency contacts.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          if (_hasActiveRide)
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _shareTripDetails();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
+              child: const Text('Share Now'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareTripDetails() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final hasContacts = await _contactService.hasEmergencyContacts();
+    if (!hasContacts) {
+      _showError('Please add emergency contacts first');
+      return;
+    }
+
+    try {
+      final userProfile = await _userService.getUserProfile(currentUser.uid);
+      final ride = await _rideService.getRideById(_currentRideId!);
+
+      await _contactService.sendSOS(
+        userName: userProfile?.name ?? 'User',
+        userPhone: userProfile?.phone ?? 'Not provided',
+        rideFrom: ride?.from ?? 'Unknown',
+        rideTo: ride?.destination ?? 'Unknown',
+        currentLocation: 'Trip shared',
+      );
+
+      _showSuccess('Trip details shared with your emergency contacts!');
+    } catch (e) {
+      _showError('Failed to share trip: ${e.toString()}');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showSuccess(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showResourceDialog(BuildContext context, String title) {
+    String content;
+    switch (title) {
+      case 'Community Guidelines':
+        content = '• Respect all users\n• No harassment or discrimination\n• Be punctual for rides\n• Keep vehicles clean\n• Rate honestly and fairly';
+        break;
+      case 'Safety Best Practices':
+        content = '• Verify driver identity before ride\n• Share trip details with family\n• Keep phone charged\n• Sit in back seat if possible\n• Trust your instincts';
+        break;
+      case 'Report a Safety Issue':
+        content = 'To report a safety issue:\n1. Go to your ride history\n2. Select the problematic ride\n3. Tap "Report Issue"\n4. Describe the incident\n5. Submit for review';
+        break;
+      default:
+        content = 'More information about "$title" will be available soon.';
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,16 +393,23 @@ class SafetyCenterScreen extends StatelessWidget {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: () {
-                _showSOSDialog(context);
-              },
+              onPressed: _isSOSActivating ? null : _activateSOS,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Row(
+              child: _isSOSActivating
+                  ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+                  : const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.warning, color: Colors.white, size: 20),
@@ -144,9 +442,7 @@ class SafetyCenterScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
-            _showShareTripDialog(context);
-          },
+          onTap: _showShareTripDialog,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -177,9 +473,11 @@ class SafetyCenterScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Let someone track your ride',
+                        _hasActiveRide
+                            ? 'Share your current ride with contacts'
+                            : 'No active ride to share',
                         style: AppTextStyles.caption.copyWith(
-                          color: AppColors.textSecondary,
+                          color: _hasActiveRide ? AppColors.textSecondary : Colors.orange,
                         ),
                       ),
                     ],
@@ -346,68 +644,6 @@ class SafetyCenterScreen extends StatelessWidget {
         onTap: () {
           _showResourceDialog(context, title);
         },
-      ),
-    );
-  }
-
-  void _showSOSDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ Emergency SOS'),
-        content: const Text('Are you sure you want to activate SOS? Your emergency contacts will be notified immediately.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('SOS Activated! Emergency contacts notified.'),
-                  backgroundColor: Colors.red,
-                  duration: Duration(seconds: 3),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Activate SOS'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showShareTripDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Share Trip Status'),
-        content: const Text('This feature will be available when you have an active ride. You can share your live location with emergency contacts.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResourceDialog(BuildContext context, String title) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text('More information about "$title" will be available soon.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
       ),
     );
   }

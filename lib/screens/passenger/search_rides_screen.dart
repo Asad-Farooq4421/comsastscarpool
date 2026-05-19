@@ -1,14 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-
-import '../../data/dummy_users.dart';
-import '../../data/ride_requests.dart';
+import '../../services/user_service.dart';
+import '../../services/ride_service.dart';
 import '../../models/ride_model.dart';
-import '../../data/dummy_rides.dart';
 import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
-
 import 'ride_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -32,24 +30,54 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController toController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
 
+  List<Ride> _allRides = [];
   List<Ride> filteredRides = [];
   bool hasSearched = false;
   bool isDriverUser = false;
   bool _hasShownDriverPopup = false;
+  bool _isLoading = true;
+
+  final RideService _rideService = RideService();
+  final UserService _userService = UserService();
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    isDriverUser = isCurrentUserDriver();
-    print('🔍 initState - isDriverUser: $isDriverUser');
+    _loadUserData();
+    _loadRides();
   }
+
+  Future<void> _loadUserData() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final userProfile = await _userService.getUserProfile(currentUser.uid);
+      setState(() {
+        _currentUserId = currentUser.uid;
+        isDriverUser = userProfile?.isDriver ?? false;
+      });
+    }
+  }
+
+  Future<void> _loadRides() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final rides = await _rideService.getAvailableRides();
+
+    setState(() {
+      _allRides = rides;
+      _isLoading = false;
+    });
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    isDriverUser = isCurrentUserDriver();
-    print('didChangeDependencies - isDriverUser: $isDriverUser');
+    _loadUserData();
   }
+
   void _showDriverModeDialog() {
     showDialog(
       context: context,
@@ -122,52 +150,37 @@ class _SearchScreenState extends State<SearchScreen> {
       ),
     ).then((confirmed) {
       if (confirmed == true) {
-
         _hasShownDriverPopup = true;
-
         widget.onNavigateToProfile();
       }
     });
   }
 
-  //SEARCH FUNCTION
   void searchRides() {
     final from = fromController.text.toLowerCase().trim();
     final to = toController.text.toLowerCase().trim();
     final date = dateController.text.trim();
-
-    final currentUserId = getCurrentUserId();
-
     final now = DateTime.now();
 
     setState(() {
       hasSearched = true;
 
-      filteredRides = dummyRides.where((ride) {
-        final matchFrom =
-            from.isEmpty || ride.from.toLowerCase().contains(from);
-
-        final matchTo =
-            to.isEmpty || ride.destination.toLowerCase().contains(to);
-
+      filteredRides = _allRides.where((ride) {
+        final matchFrom = from.isEmpty || ride.from.toLowerCase().contains(from);
+        final matchTo = to.isEmpty || ride.destination.toLowerCase().contains(to);
         final matchDate = date.isEmpty || ride.date == date;
-
         final hasSeats = ride.availableSeats > 0;
+        final notMyRide = _currentUserId == null || ride.driverId != _currentUserId;
 
-        final notMyRide = ride.driverId != currentUserId;
-
+        // Parse ride date and time
         DateTime rideDateTime;
-
         try {
           final rideDate = DateTime.parse(ride.date);
-
           final timeParts = ride.time.split(' ');
           final hm = timeParts[0].split(':');
-
           int hour = int.parse(hm[0]);
           int minute = int.parse(hm[1]);
 
-          // Handle AM/PM
           if (timeParts[1] == "PM" && hour != 12) {
             hour += 12;
           } else if (timeParts[1] == "AM" && hour == 12) {
@@ -182,42 +195,43 @@ class _SearchScreenState extends State<SearchScreen> {
             minute,
           );
         } catch (e) {
-          // If parsing fails, exclude ride
           return false;
         }
 
-
         final isFutureRide = rideDateTime.isAfter(now);
 
-        return matchFrom &&
-            matchTo &&
-            matchDate &&
-            hasSeats &&
-            notMyRide &&
-            isFutureRide;
+        return matchFrom && matchTo && matchDate && hasSeats && notMyRide && isFutureRide;
       }).toList();
     });
+  }
+
+  // FIXED: Changed to Future<void> for RefreshIndicator
+  Future<void> _refreshRides() async {
+    await _loadRides();
+    if (hasSearched) {
+      searchRides();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildSearchForm(),
-            _buildRideList(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _refreshRides, // Now this works because it returns Future<void>
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildSearchForm(),
+              _buildRideList(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-
-  // HEADER
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -236,7 +250,6 @@ class _SearchScreenState extends State<SearchScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row (Title + Notification)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -253,52 +266,20 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ],
               ),
-              Stack(
-                children: [
-                  const Icon(Icons.notifications_none,
-                      color: Colors.white, size: 32),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Text(
-                        '2',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
-
           const SizedBox(height: 24),
-
-          // Role Toggle (Centered) - ✅ FIXED LOGIC
           Center(
             child: RoleToggle(
               selectedRole: selectedRole,
               onChanged: (role) {
                 if (role == UserRole.driver) {
-                  //  Check if user is already a driver
                   if (isDriverUser) {
-                    // Already a driver - go to driver home
                     widget.onSwitch();
                   } else {
-                    // Not a driver yet - check if popup already shown
                     if (!_hasShownDriverPopup) {
                       _showDriverModeDialog();
                     } else {
-                      // Popup already shown before, just go to profile
                       widget.onNavigateToProfile();
                     }
                   }
@@ -315,7 +296,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // SEARCH FORM
   Widget _buildSearchForm() {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -327,15 +307,12 @@ class _SearchScreenState extends State<SearchScreen> {
             icon: Icons.circle,
           ),
           const SizedBox(height: 10),
-
           _inputField(
             controller: toController,
             hint: "To",
             icon: Icons.location_on,
           ),
           const SizedBox(height: 10),
-
-          // DATE
           GestureDetector(
             onTap: () async {
               DateTime? pickedDate = await showDatePicker(
@@ -344,11 +321,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 firstDate: DateTime.now(),
                 lastDate: DateTime(2100),
               );
-
               if (pickedDate != null) {
                 setState(() {
-                  dateController.text =
-                  pickedDate.toIso8601String().split('T')[0];
+                  dateController.text = pickedDate.toIso8601String().split('T')[0];
                 });
               }
             },
@@ -360,9 +335,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.secondary,
@@ -380,7 +353,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // INPUT FIELD
   Widget _inputField({
     required TextEditingController controller,
     required String hint,
@@ -404,7 +376,6 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  // RIDE LIST
   Widget _buildRideList() {
     return Expanded(
       child: Padding(
@@ -414,11 +385,11 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             if (hasSearched)
               Text("Available Rides", style: AppTextStyles.heading3),
-
             const SizedBox(height: 10),
-
             Expanded(
-              child: !hasSearched
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : !hasSearched
                   ? const Center(
                 child: Text("Search for rides to see results"),
               )
@@ -430,16 +401,18 @@ class _SearchScreenState extends State<SearchScreen> {
                 itemCount: filteredRides.length,
                 itemBuilder: (context, index) {
                   final ride = filteredRides[index];
-
                   return RideCard(
                     ride: ride,
-                    onTap: () {
-                      Navigator.push(
+                    onTap: () async {
+                      final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => RideDetailsScreen(ride: ride),
                         ),
                       );
+                      if (result == true) {
+                        await _refreshRides();
+                      }
                     },
                   );
                 },

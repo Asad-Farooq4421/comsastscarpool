@@ -58,4 +58,18 @@ class MessageModel {
       'isRead': isRead,
     };
   }
+
+  // Add factory method for JSON parsing
+  factory MessageModel.fromJson(Map<String, dynamic> json, String id) {
+    return MessageModel(
+      id: id,
+      chatId: json['chatId'] ?? '',
+      senderId: json['senderId'] ?? '',
+      receiverId: json['receiverId'] ?? '',
+      text: json['text'] ?? '',
+      timestamp: json['timestamp'] ?? DateTime.now().toIso8601String(),
+      isRead: json['isRead'] ?? false,
+    );
+  }
 }
+

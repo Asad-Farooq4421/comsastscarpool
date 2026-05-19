@@ -1,86 +1,75 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../data/dummy_messages.dart';
-import '../../data/dummy_chats.dart';
-import '../../data/dummy_users.dart';
-import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
+import '../../services/chat_service.dart';
+import '../../services/user_service.dart';
 
 class IndividualChatScreen extends StatefulWidget {
-  const IndividualChatScreen({super.key});
+  final String chatId;
+  final String rideId;
+  final String otherUserName;
+
+  const IndividualChatScreen({
+    super.key,
+    required this.chatId,
+    required this.rideId,
+    required this.otherUserName,
+  });
 
   @override
   State<IndividualChatScreen> createState() => _IndividualChatScreenState();
 }
 
 class _IndividualChatScreenState extends State<IndividualChatScreen> {
-  late String chatId;
-  late ChatModel chat;
-  List<MessageModel> messages = [];
-  final TextEditingController messageController = TextEditingController();
+  final ChatService _chatService = ChatService();
+  final UserService _userService = UserService();
+
+  List<MessageModel> _messages = [];
+  final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
-
-  String get currentUserId => getCurrentUserId();
+  String? _currentUserId;
+  String? _currentUserName;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeChat();
-    });
+    _loadCurrentUser();
+    _loadMessages();
+    _markMessagesAsRead();
   }
 
-  void _initializeChat() {
-    final args = ModalRoute.of(context)?.settings.arguments;
-
-    if (args is String) {
-      chatId = args;
-      final foundChat = getChatById(chatId);
-      if (foundChat != null) {
-        chat = foundChat;
-        _loadMessages();
-        _markMessagesAsRead();
-        _scrollToBottom();
-      }
+  Future<void> _loadCurrentUser() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final userProfile = await _userService.getUserProfile(currentUser.uid);
+      setState(() {
+        _currentUserId = currentUser.uid;
+        _currentUserName = userProfile?.name ?? currentUser.displayName ?? 'User';
+      });
     }
+  }
 
+  Future<void> _loadMessages() async {
+    final messages = await _chatService.getMessages(widget.chatId);
     setState(() {
+      _messages = messages;
       _isLoading = false;
     });
+    _scrollToBottom();
   }
 
-  void _loadMessages() {
-    setState(() {
-      messages = getMessagesForChat(chatId);
-    });
-  }
-
-  // ✅ FIXED: Mark messages as read and reset unread count for current user
-  void _markMessagesAsRead() {
-    final currentUser = currentUserId;
-
-    // Mark all unread messages as read
-    bool updated = false;
-    for (int i = 0; i < messages.length; i++) {
-      if (messages[i].receiverId == currentUser && !messages[i].isRead) {
-        messages[i] = messages[i].copyWith(isRead: true);
-        updated = true;
-      }
-    }
-
-    if (updated) {
-      // Reset unread count for current user in this chat
-      resetUnreadCount(chatId);
-      setState(() {});
-      print('✅ Messages marked as read for user: $currentUser in chat: $chatId');
+  Future<void> _markMessagesAsRead() async {
+    if (_currentUserId != null) {
+      await _chatService.markMessagesAsRead(widget.chatId);
     }
   }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients && messages.isNotEmpty) {
+      if (_scrollController.hasClients && _messages.isNotEmpty) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -90,76 +79,84 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     });
   }
 
-  void _sendMessage() {
-    final messageText = messageController.text.trim();
-    if (messageText.isEmpty) return;
+  Future<void> _sendMessage() async {
+    final messageText = _messageController.text.trim();
+    if (messageText.isEmpty || _currentUserId == null) return;
 
-    sendMessage(
-      chatId: chatId,
-      text: messageText,
-    );
-
-    messageController.clear();
-    _loadMessages();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom();
+    setState(() {
+      _isLoading = true;
     });
+
+    try {
+      // Get the other participant ID
+      final otherUserId = await _getOtherUserId();
+
+      await _chatService.sendMessage(
+        chatId: widget.chatId,
+        receiverId: otherUserId,
+        text: messageText,
+      );
+
+      _messageController.clear();
+      await _loadMessages();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error sending message: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  String getOtherUserName() {
-    final otherUserId = chat.getOtherParticipant(currentUserId);
-    final user = getUserByEmail(otherUserId);
-    return user?['name'] ?? otherUserId.split('@').first;
+  Future<String> _getOtherUserId() async {
+    final chat = await _chatService.getChat(widget.chatId);
+    if (chat != null && _currentUserId != null) {
+      return chat.getOtherParticipant(_currentUserId!);
+    }
+    throw Exception('Could not find other participant');
   }
 
-  String getOtherUserPhoto() {
-    final otherUserId = chat.getOtherParticipant(currentUserId);
-    final user = getUserByEmail(otherUserId);
-    return user?['photo'] as String? ?? '';
-  }
+  String _formatTimestamp(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
 
-  String getOtherUserFirstLetter() {
-    final name = getOtherUserName();
-    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+      if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return '';
+    }
   }
 
   @override
   void dispose() {
-    messageController.dispose();
+    _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final otherUserName = getOtherUserName();
-    final otherUserPhoto = getOtherUserPhoto();
-    final otherUserFirstLetter = getOtherUserFirstLetter();
-
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Row(
           children: [
-            otherUserPhoto.isNotEmpty
-                ? CircleAvatar(
+            CircleAvatar(
               radius: 18,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-              backgroundImage: NetworkImage(otherUserPhoto),
-              onBackgroundImageError: (_, __) {},
-            )
-                : CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              backgroundColor: AppColors.primary.withOpacity(0.1),
               child: Text(
-                otherUserFirstLetter,
+                widget.otherUserName.isNotEmpty ? widget.otherUserName[0].toUpperCase() : '?',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -172,7 +169,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  otherUserName,
+                  widget.otherUserName,
                   style: AppTextStyles.bodyLarge.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -212,74 +209,23 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
+              itemCount: _messages.length,
               itemBuilder: (context, index) {
-                final message = messages[index];
-                final isMe = message.senderId == currentUserId;
+                final message = _messages[index];
+                final isMe = message.senderId == _currentUserId;
                 return _buildMessageBubble(message, isMe);
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message...',
-                      hintStyle: AppTextStyles.inputHint,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: const BorderSide(color: AppColors.primary),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                    onPressed: _sendMessage,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildMessageInput(),
         ],
       ),
     );
@@ -319,7 +265,7 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _formatTimeForDisplay(message.timestamp),
+                  _formatTimestamp(message.timestamp),
                   style: TextStyle(
                     color: isMe ? Colors.white70 : AppColors.textHint,
                     fontSize: 10,
@@ -341,22 +287,61 @@ class _IndividualChatScreenState extends State<IndividualChatScreen> {
     );
   }
 
-  String _formatTimeForDisplay(String timestamp) {
-    if (timestamp.contains(' ')) {
-      final parts = timestamp.split(' ');
-      if (parts.length >= 2) {
-        final timeParts = parts[1].split(':');
-        if (timeParts.length >= 2) {
-          int hour = int.parse(timeParts[0]);
-          final minute = timeParts[1];
-          final amPm = hour >= 12 ? 'PM' : 'AM';
-          hour = hour % 12;
-          if (hour == 0) hour = 12;
-          return '$hour:$minute $amPm';
-        }
-      }
-    }
-    return timestamp;
+  Widget _buildMessageInput() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: InputDecoration(
+                hintText: 'Type a message...',
+                hintStyle: AppTextStyles.inputHint,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: AppColors.primary),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              onSubmitted: (_) => _sendMessage(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+              onPressed: _sendMessage,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showReportDialog() {
