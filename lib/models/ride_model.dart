@@ -35,6 +35,51 @@ class Ride {
     required this.passengers,
   });
 
+  // From JSON (Firebase)
+  factory Ride.fromJson(Map<String, dynamic> json, String id) {
+    return Ride(
+      rideId: id,
+      driverId: json['driverId'] ?? '',
+      driverName: json['driverName'] ?? '',
+      driverPhoto: json['driverPhoto'] ?? '',
+      driverRating: (json['driverRating'] ?? 0.0).toDouble(),
+      from: json['from'] ?? '',
+      destination: json['destination'] ?? '',
+      date: json['date'] ?? '',
+      time: json['time'] ?? '',
+      totalSeats: json['totalSeats'] ?? 0,
+      availableSeats: json['availableSeats'] ?? 0,
+      price: json['price'] ?? 0,
+      status: json['status'] ?? 'scheduled',
+      notes: json['notes'] ?? '',
+      pendingRequests: json['pendingRequests'] ?? 0,
+      passengers: (json['passengers'] as List? ?? [])
+          .map((p) => PassengerInfo.fromJson(Map<String, dynamic>.from(p)))
+          .toList(),
+    );
+  }
+
+  // To JSON (Firebase)
+  Map<String, dynamic> toJson() {
+    return {
+      'driverId': driverId,
+      'driverName': driverName,
+      'driverPhoto': driverPhoto,
+      'driverRating': driverRating,
+      'from': from,
+      'destination': destination,
+      'date': date,
+      'time': time,
+      'totalSeats': totalSeats,
+      'availableSeats': availableSeats,
+      'price': price,
+      'status': status,
+      'notes': notes,
+      'pendingRequests': pendingRequests,
+      'passengers': passengers.map((p) => p.toJson()).toList(),
+    };
+  }
+
   // Helper to get filled seats count
   int get filledSeats => totalSeats - availableSeats;
 
@@ -93,6 +138,24 @@ class PassengerInfo {
     required this.name,
     required this.status,
   });
+
+  // From JSON (Firebase)
+  factory PassengerInfo.fromJson(Map<String, dynamic> json) {
+    return PassengerInfo(
+      userId: json['userId'] ?? '',
+      name: json['name'] ?? '',
+      status: json['status'] ?? 'pending',
+    );
+  }
+
+  // To JSON (Firebase)
+  Map<String, dynamic> toJson() {
+    return {
+      'userId': userId,
+      'name': name,
+      'status': status,
+    };
+  }
 
   PassengerInfo copyWith({
     String? userId,

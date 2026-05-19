@@ -1,81 +1,115 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../constants/text_styles.dart';
 import '../../models/ride_model.dart';
-import '../../data/dummy_rides.dart';
+import '../../services/ride_service.dart';
 import '../../widgets/custom_button.dart';
 
 class EditRideScreen extends StatefulWidget {
-  const EditRideScreen({super.key});
+  final Ride? ride;
+
+  const EditRideScreen({super.key, this.ride});
 
   @override
   State<EditRideScreen> createState() => _EditRideScreenState();
 }
 
 class _EditRideScreenState extends State<EditRideScreen> {
-  late Ride ride;
+  late Ride _ride;
   final _formKey = GlobalKey<FormState>();
-  
-  final TextEditingController fromController = TextEditingController();
-  final TextEditingController destinationController = TextEditingController();
-  final TextEditingController dateController = TextEditingController();
-  final TextEditingController timeController = TextEditingController();
-  final TextEditingController seatsController = TextEditingController();
-  final TextEditingController priceController = TextEditingController();
-  final TextEditingController notesController = TextEditingController();
-
+  bool _isLoading = false;
   bool _isInitialized = false;
 
+  final RideService _rideService = RideService();
+
+  final TextEditingController _fromController = TextEditingController();
+  final TextEditingController _destinationController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
+  final TextEditingController _seatsController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+
+  @override
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_isInitialized) {
-      ride = ModalRoute.of(context)!.settings.arguments as Ride;
-      
-      // Step 1: Initialize controllers with existing ride data
-      fromController.text = ride.from;
-      destinationController.text = ride.destination;
-      dateController.text = ride.date;
-      timeController.text = ride.time;
-      seatsController.text = ride.availableSeats.toString();
-      priceController.text = ride.price.toString();
-      notesController.text = ride.notes;
-      
-      _isInitialized = true;
+      // First try to get ride from constructor parameter
+      if (widget.ride != null) {
+        _ride = widget.ride!;
+      } else {
+        // Fall back to route arguments
+        final args = ModalRoute.of(context)?.settings.arguments;
+        if (args is Ride) {
+          _ride = args;
+        }
+      }
+
+      if (_ride.rideId.isNotEmpty) {
+        // Initialize controllers with existing ride data
+        _fromController.text = _ride.from;
+        _destinationController.text = _ride.destination;
+        _dateController.text = _ride.date;
+        _timeController.text = _ride.time;
+        _seatsController.text = _ride.availableSeats.toString();
+        _priceController.text = _ride.price.toString();
+        _notesController.text = _ride.notes;
+
+        _isInitialized = true;
+      }
     }
   }
 
+
   @override
   void dispose() {
-    fromController.dispose();
-    destinationController.dispose();
-    dateController.dispose();
-    timeController.dispose();
-    seatsController.dispose();
-    priceController.dispose();
-    notesController.dispose();
+    _fromController.dispose();
+    _destinationController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
+    _seatsController.dispose();
+    _priceController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
-  // Step 2: Save Changes Logic
-  void _saveChanges() {
-    if (_formKey.currentState!.validate()) {
-      final index = dummyRides.indexWhere((r) => r.rideId == ride.rideId);
-      
-      if (index != -1) {
-        final updatedRide = ride.copyWith(
-          from: fromController.text,
-          destination: destinationController.text,
-          date: dateController.text,
-          time: timeController.text,
-          availableSeats: int.parse(seatsController.text),
-          price: int.parse(priceController.text),
-          notes: notesController.text,
-        );
-        
-        setState(() {
-          updateRide(updatedRide);
-        });
+  // Wrapper for save button (returns void, calls async)
+  void _onSavePressed() {
+    _saveChanges();
+  }
 
+  // Wrapper for cancel button (returns void, calls async)
+  void _onCancelPressed() {
+    _showCancelConfirmation();
+  }
+
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      final updatedRide = _ride.copyWith(
+        from: _fromController.text,
+        destination: _destinationController.text,
+        date: _dateController.text,
+        time: _timeController.text,
+        availableSeats: int.parse(_seatsController.text),
+        price: int.parse(_priceController.text),
+        notes: _notesController.text,
+      );
+
+      await _rideService.updateRide(updatedRide);
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Ride updated successfully'),
@@ -83,13 +117,26 @@ class _EditRideScreenState extends State<EditRideScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        
-        Navigator.pop(context, true); // Go back with refresh flag
+
+        Navigator.pop(context, true);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  // Step 3: Cancel Ride Logic
   void _showCancelConfirmation() {
     showDialog(
       context: context,
@@ -103,7 +150,7 @@ class _EditRideScreenState extends State<EditRideScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(context);
               _cancelRide();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -114,20 +161,40 @@ class _EditRideScreenState extends State<EditRideScreen> {
     );
   }
 
-  void _cancelRide() {
+  Future<void> _cancelRide() async {
     setState(() {
-      deleteRide(ride.rideId);
+      _isLoading = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Ride cancelled successfully'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    
-    Navigator.pop(context, true); // Go back with refresh flag
+    try {
+      await _rideService.deleteRide(_ride.rideId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ride cancelled successfully'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -149,15 +216,15 @@ class _EditRideScreenState extends State<EditRideScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildLabel('From *'),
-              _buildTextField(fromController, 'Starting location', Icons.location_on, Colors.blue),
-              
+              _buildTextField(_fromController, 'Starting location', Icons.location_on, Colors.blue),
+
               const SizedBox(height: 20),
-              
+
               _buildLabel('Destination *'),
-              _buildTextField(destinationController, 'Where to?', Icons.location_on, Colors.green),
-              
+              _buildTextField(_destinationController, 'Where to?', Icons.location_on, Colors.green),
+
               const SizedBox(height: 20),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -165,7 +232,24 @@ class _EditRideScreenState extends State<EditRideScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildLabel('Date *'),
-                        _buildTextField(dateController, 'YYYY-MM-DD', Icons.calendar_today, Colors.grey),
+                        GestureDetector(
+                          onTap: () async {
+                            final pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: DateTime.now(),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime(2100),
+                            );
+                            if (pickedDate != null) {
+                              setState(() {
+                                _dateController.text = pickedDate.toIso8601String().split('T')[0];
+                              });
+                            }
+                          },
+                          child: AbsorbPointer(
+                            child: _buildTextField(_dateController, 'YYYY-MM-DD', Icons.calendar_today, Colors.grey),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -175,15 +259,15 @@ class _EditRideScreenState extends State<EditRideScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildLabel('Time *'),
-                        _buildTextField(timeController, 'HH:MM AM/PM', Icons.access_time, Colors.grey),
+                        _buildTextField(_timeController, 'HH:MM AM/PM', Icons.access_time, Colors.grey),
                       ],
                     ),
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               Row(
                 children: [
                   Expanded(
@@ -191,7 +275,7 @@ class _EditRideScreenState extends State<EditRideScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildLabel('Available Seats *'),
-                        _buildTextField(seatsController, 'Count', Icons.people, Colors.grey, isNumber: true),
+                        _buildTextField(_seatsController, 'Count', Icons.people, Colors.grey, isNumber: true),
                       ],
                     ),
                   ),
@@ -201,18 +285,18 @@ class _EditRideScreenState extends State<EditRideScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildLabel('Price per Seat *'),
-                        _buildTextField(priceController, 'PKR', Icons.attach_money, Colors.grey, isNumber: true),
+                        _buildTextField(_priceController, 'PKR', Icons.attach_money, Colors.grey, isNumber: true),
                       ],
                     ),
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               _buildLabel('Notes (Optional)'),
               TextFormField(
-                controller: notesController,
+                controller: _notesController,
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'e.g. Near Starbucks',
@@ -229,28 +313,24 @@ class _EditRideScreenState extends State<EditRideScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 40),
-              
+
+              // Save button using wrapper
               CustomButton(
                 text: 'Save Changes',
-                onPressed: _saveChanges,
+                onPressed: _isLoading ? () {} : _onSavePressed,
+                isLoading: _isLoading,
               ),
-              
+
               const SizedBox(height: 12),
-              
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: _showCancelConfirmation,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Cancel Ride', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+
+              // Cancel button using wrapper
+              CustomButton(
+                text: 'Cancel Ride',
+                onPressed: _isLoading ? () {} : _onCancelPressed,
+                isOutlined: true,
+                backgroundColor: Colors.red,
               ),
             ],
           ),

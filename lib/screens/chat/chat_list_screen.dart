@@ -1,10 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
-import '../../data/dummy_chats.dart';
-import '../../data/dummy_users.dart';
 import '../../models/chat_model.dart';
+import '../../services/chat_service.dart';
+import '../../services/user_service.dart';
 import '../../utils/routes.dart';
+import '../chat/individual_chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -14,37 +16,78 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  List<ChatModel> chats = [];
+  final ChatService _chatService = ChatService();
+  final UserService _userService = UserService();
+
+  List<ChatModel> _chats = [];
+  bool _isLoading = true;
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    _loadChats();
+    _loadCurrentUser();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _loadChats();
+  Future<void> _loadCurrentUser() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      setState(() {
+        _currentUserId = currentUser.uid;
+      });
+      _loadChats();
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  void _loadChats() {
+  Future<void> _loadChats() async {
+    if (_currentUserId == null) return;
+
     setState(() {
-      chats = List.from(getCurrentUserChats());
-      print('📋 Loaded ${chats.length} chats for user: ${getCurrentUserId()}');
+      _isLoading = true;
     });
+
+    try {
+      final chats = await _chatService.getUserChats();
+      setState(() {
+        _chats = chats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading chats: $e');
+      setState(() {
+        _chats = [];
+        _isLoading = false;
+      });
+    }
   }
 
-  Map<String, String> _getOtherUserInfo(ChatModel chat) {
-    final currentUserId = getCurrentUserId();
-    final otherUserId = chat.getOtherParticipant(currentUserId);
-    final user = getUserByEmail(otherUserId);
+  Future<Map<String, dynamic>> _getOtherUserInfo(ChatModel chat) async {
+    if (_currentUserId == null) {
+      return {
+        'name': 'Unknown',
+        'photo': '',
+        'firstLetter': '?',
+        'userId': '',
+      };
+    }
+
+    final otherUserId = chat.getOtherParticipant(_currentUserId!);
+    final userProfile = await _userService.getUserProfile(otherUserId);
 
     return {
-      'name': user?['name'] ?? otherUserId.split('@').first,
-      'photo': user?['photo'] ?? '',
-      'firstLetter': (user?['name'] ?? otherUserId.split('@').first)[0].toUpperCase(),
+      'name': userProfile?.name ?? otherUserId.split('@').first,
+      'photo': userProfile?.photo ?? '',
+      'firstLetter': (userProfile?.name ?? otherUserId.split('@').first)[0].toUpperCase(),
+      'userId': otherUserId,
     };
+  }
+
+  Future<void> _refreshChats() async {
+    await _loadChats();
   }
 
   @override
@@ -53,62 +96,73 @@ class _ChatListScreenState extends State<ChatListScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Messages',
-                  style: AppTextStyles.heading1.copyWith(
-                    color: Colors.white,
-                    fontSize: 28,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Chat with your ride partners',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _buildHeader(),
           Expanded(
-            child: chats.isEmpty
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _chats.isEmpty
                 ? _buildEmptyState()
                 : RefreshIndicator(
-              onRefresh: () async {
-                _loadChats();
-              },
+              onRefresh: _refreshChats,
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: chats.length,
+                itemCount: _chats.length,
                 itemBuilder: (context, index) {
-                  final chat = chats[index];
-                  final otherUser = _getOtherUserInfo(chat);
-                  return _buildChatCard(
-                    context,
-                    chat,
-                    otherUser['name']!,
-                    otherUser['photo']!,
-                    otherUser['firstLetter']!,
+                  final chat = _chats[index];
+                  return FutureBuilder<Map<String, dynamic>>(
+                    future: _getOtherUserInfo(chat),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        final otherUser = snapshot.data!;
+                        return _buildChatCard(
+                          chat,
+                          otherUser['name']!,
+                          otherUser['photo']!,
+                          otherUser['firstLetter']!,
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
                   );
                 },
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primaryLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Messages',
+            style: AppTextStyles.heading1.copyWith(
+              color: Colors.white,
+              fontSize: 28,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Chat with your ride partners',
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: Colors.white70,
             ),
           ),
         ],
@@ -145,23 +199,32 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  Widget _buildChatCard(BuildContext context, ChatModel chat,
-      String otherUserName, String otherUserPhoto, String firstLetter) {
-
-    // ✅ FIXED: Get unread count for CURRENT USER only
-    final currentUserId = getCurrentUserId();
-    final unreadCount = chat.getUnreadCount(currentUserId);
+  Widget _buildChatCard(ChatModel chat, String otherUserName, String otherUserPhoto, String firstLetter) {
+    // Get unread count for current user
+    final unreadCount = _currentUserId != null ? chat.getUnreadCount(_currentUserId!) : 0;
 
     return InkWell(
       onTap: () async {
-        print('📱 Opening chat: ${chat.id}');
-        resetUnreadCount(chat.id);
-        final result = await Navigator.pushNamed(
-          context,
-          AppRoutes.individualChat,
-          arguments: chat.id,
-        );
-        _loadChats();
+        if (_currentUserId != null) {
+          // Mark messages as read
+          await _chatService.markMessagesAsRead(chat.id);
+
+          // Navigate to chat
+          if (mounted) {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => IndividualChatScreen(
+                  chatId: chat.id,
+                  rideId: chat.rideId,
+                  otherUserName: otherUserName,
+                ),
+              ),
+            );
+            // Refresh chats after returning
+            _loadChats();
+          }
+        }
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -172,13 +235,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 otherUserPhoto.isNotEmpty
                     ? CircleAvatar(
                   radius: 28,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
                   backgroundImage: NetworkImage(otherUserPhoto),
                   onBackgroundImageError: (_, __) {},
                 )
                     : CircleAvatar(
                   radius: 28,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
                   child: Text(
                     firstLetter,
                     style: const TextStyle(
@@ -188,7 +251,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ),
                   ),
                 ),
-                // ✅ FIXED: Use per-user unread count
                 if (unreadCount > 0)
                   Positioned(
                     right: 0,
@@ -233,7 +295,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       ),
                       Text(
-                        chat.lastMessageTime,
+                        _formatTime(chat.lastMessageTime),
                         style: AppTextStyles.caption.copyWith(
                           color: AppColors.textHint,
                         ),
@@ -261,5 +323,25 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ),
       ),
     );
+  }
+
+  String _formatTime(String timestamp) {
+    try {
+      final dateTime = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+
+      if (difference.inDays > 0) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inHours > 0) {
+        return '${difference.inHours}h ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes}m ago';
+      } else {
+        return 'Just now';
+      }
+    } catch (e) {
+      return '';
+    }
   }
 }

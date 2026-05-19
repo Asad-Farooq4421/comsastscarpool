@@ -70,6 +70,19 @@ class ChatModel {
     );
   }
 
+  // Add to ChatModel class
+  factory ChatModel.fromJson(Map<String, dynamic> json, String id) {
+    return ChatModel(
+      id: id,
+      participants: List<String>.from(json['participants'] ?? []),
+      rideId: json['rideId'] ?? '',
+      lastMessage: json['lastMessage'] ?? '',
+      lastMessageTime: json['lastMessageTime'] ?? DateTime.now().toIso8601String(),
+      unreadCounts: Map<String, int>.from(json['unreadCounts'] ?? {}),
+      isActive: json['isActive'] ?? true,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

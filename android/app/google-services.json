@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "400738570869",
+    "firebase_url": "https://campus-carpool-abb2a-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "campus-carpool-abb2a",
+    "storage_bucket": "campus-carpool-abb2a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:400738570869:android:b8c5bf7e094d6da4bd5e3c",
+        "android_client_info": {
+          "package_name": "com.example.comsastscarpool"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfKoi5I-3sLVES9tVt9Y6RMZW0KcmmvuY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
