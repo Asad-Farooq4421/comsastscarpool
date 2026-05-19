@@ -57,15 +57,17 @@ class AuthService {
   }
 
   // LOGIN
+  // LOGIN
   Future<AppUser> signInWithEmail({
     required String email,
     required String password,
   }) async {
     try {
+
       final UserCredential credential =
       await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
+        email: email.trim().toLowerCase(),
+        password: password.trim(),
       );
 
       final User? firebaseUser = credential.user;
@@ -74,19 +76,31 @@ class AuthService {
         throw Exception("Login failed");
       }
 
-      final AppUser? appUser =
+      // Try to get existing profile
+      AppUser? appUser =
       await _userService.getUserProfile(firebaseUser.uid);
 
+      // If profile does not exist in Realtime DB,
+      // automatically create it
       if (appUser == null) {
-        throw Exception("User profile not found");
+
+        appUser = await _userService.createUserFromSignup(
+          uid: firebaseUser.uid,
+          email: firebaseUser.email ?? email,
+          name: firebaseUser.displayName ?? "User",
+        );
       }
 
       await _userService.updateLastSeen();
 
       return appUser;
+
     } on FirebaseAuthException catch (e) {
+
       throw Exception(_getAuthErrorMessage(e.code));
+
     } catch (e) {
+
       throw Exception("Login failed: $e");
     }
   }
@@ -104,21 +118,21 @@ class AuthService {
   }
 
   // EMAIL VERIFICATION
-  Future<void> sendEmailVerification() async {
-    try {
-      final User? user = _auth.currentUser;
-
-      if (user == null) {
-        throw Exception("No logged-in user");
-      }
-
-      if (!user.emailVerified) {
-        await user.sendEmailVerification();
-      }
-    } catch (e) {
-      throw Exception("Failed to send verification email");
-    }
-  }
+  // Future<void> sendEmailVerification() async {
+  //   try {
+  //     final User? user = _auth.currentUser;
+  //
+  //     if (user == null) {
+  //       throw Exception("No logged-in user");
+  //     }
+  //
+  //     if (!user.emailVerified) {
+  //       await user.sendEmailVerification();
+  //     }
+  //   } catch (e) {
+  //     throw Exception("Failed to send verification email");
+  //   }
+  // }
 
   // RELOAD USER
   Future<void> reloadUser() async {

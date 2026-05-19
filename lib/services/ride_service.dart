@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/ride_model.dart';
@@ -243,6 +244,61 @@ class RideService {
     }).toList();
   }
 
+  // Get rides near a location (within radius in km)
+  Future<List<Ride>> getRidesNearLocation(double latitude, double longitude, double radiusKm) async {
+    final allRides = await getAllRides();
+    final nearbyRides = <Ride>[];
+
+    for (final ride in allRides) {
+      if (ride.pickupLatitude != null && ride.pickupLongitude != null &&
+          ride.availableSeats > 0 && ride.isActive) {
+
+        final distance = _calculateDistance(
+          latitude, longitude,
+          ride.pickupLatitude!, ride.pickupLongitude!,
+        );
+
+        if (distance <= radiusKm) {
+          nearbyRides.add(ride);
+        }
+      }
+    }
+
+    // Sort by distance
+    nearbyRides.sort((a, b) {
+      final distanceA = _calculateDistance(
+        latitude, longitude,
+        a.pickupLatitude!, a.pickupLongitude!,
+      );
+      final distanceB = _calculateDistance(
+        latitude, longitude,
+        b.pickupLatitude!, b.pickupLongitude!,
+      );
+      return distanceA.compareTo(distanceB);
+    });
+
+    return nearbyRides;
+  }
+
+  // Calculate distance between two coordinates (Haversine formula)
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const double R = 6371; // Earth's radius in km
+
+    double dLat = _toRadians(lat2 - lat1);
+    double dLon = _toRadians(lon2 - lon1);
+
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) * cos(_toRadians(lat2)) *
+            sin(dLon / 2) * sin(dLon / 2);
+
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
+  }
+
+  double _toRadians(double degrees) {
+    return degrees * pi / 180;
+  }
+
   // Stream of rides (real-time updates)
   Stream<List<Ride>> streamAllRides() {
     return _databaseRef.child('rides').onValue.map((event) {
@@ -272,6 +328,50 @@ class RideService {
         });
       }
       return rides;
+    });
+  }
+
+  // Stream rides near a location (real-time)
+  Stream<List<Ride>> streamRidesNearLocation(double latitude, double longitude, double radiusKm) {
+    return _databaseRef.child('rides').onValue.map((event) {
+      final List<Ride> nearbyRides = [];
+
+      if (event.snapshot.value != null) {
+        final Map<dynamic, dynamic> ridesMap = event.snapshot.value as Map;
+
+        ridesMap.forEach((key, value) {
+          final Map<String, dynamic> rideData = Map<String, dynamic>.from(value);
+          final ride = Ride.fromJson(rideData, key.toString());
+
+          if (ride.pickupLatitude != null && ride.pickupLongitude != null &&
+              ride.availableSeats > 0 && ride.isActive) {
+
+            final distance = _calculateDistance(
+              latitude, longitude,
+              ride.pickupLatitude!, ride.pickupLongitude!,
+            );
+
+            if (distance <= radiusKm) {
+              nearbyRides.add(ride);
+            }
+          }
+        });
+
+        // Sort by distance
+        nearbyRides.sort((a, b) {
+          final distanceA = _calculateDistance(
+            latitude, longitude,
+            a.pickupLatitude!, a.pickupLongitude!,
+          );
+          final distanceB = _calculateDistance(
+            latitude, longitude,
+            b.pickupLatitude!, b.pickupLongitude!,
+          );
+          return distanceA.compareTo(distanceB);
+        });
+      }
+
+      return nearbyRides;
     });
   }
 }
