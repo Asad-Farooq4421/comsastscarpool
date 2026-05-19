@@ -69,12 +69,19 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
 
     try {
       final rides = await _rideService.getRidesByDriverId(_currentUserId!);
+      print('✅ Loaded ${rides.length} rides for driver $_currentUserId');
+
+      // Print each ride for debugging
+      for (var ride in rides) {
+        print('  - Ride: ${ride.from} → ${ride.destination} (${ride.status})');
+      }
+
       setState(() {
         _myRides = rides;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading my rides: $e');
+      print('❌ Error loading my rides: $e');
       setState(() {
         _myRides = [];
         _isLoading = false;
@@ -330,6 +337,10 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
     final bool hasPendingRequests = ride.pendingRequests > 0;
     final bool isActive = ride.status == 'scheduled' || ride.status == 'active';
 
+    // Use pickupAddress/dropoffAddress if available, otherwise fallback to from/destination
+    final String pickupDisplay = ride.pickupAddress ?? ride.from;
+    final String dropoffDisplay = ride.dropoffAddress ?? ride.destination;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -376,17 +387,30 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Route (From → To)
+          // Route (From → To) - Using full addresses
           Row(
             children: [
               const Icon(Icons.circle, size: 8, color: AppColors.primary),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  ride.from,
-                  style: AppTextStyles.bodyMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'FROM:',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      pickupDisplay,
+                      style: AppTextStyles.bodyMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -404,22 +428,53 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
               const Icon(Icons.location_on, size: 16, color: Colors.green),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  ride.destination,
-                  style: AppTextStyles.bodyMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TO:',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      dropoffDisplay,
+                      style: AppTextStyles.bodyMedium,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Details Row: Time | Seats | Price
+          // Date and Time
           Row(
             children: [
-              _buildDetailChip(Icons.access_time, ride.time),
-              const SizedBox(width: 12),
+              Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 4),
+              Text(
+                ride.date,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(width: 16),
+              Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 4),
+              Text(
+                ride.time,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Details Row: Seats | Price
+          Row(
+            children: [
               _buildDetailChip(
                 Icons.people,
                 '${ride.filledSeats}/${ride.totalSeats} filled',
@@ -440,7 +495,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
               if (hasPendingRequests)
                 Expanded(
                   child: CustomButton(
-                    text: 'Requests',
+                    text: 'Requests ($hasPendingRequests)',
                     onPressed: () async {
                       await Navigator.pushNamed(
                         context,
@@ -449,7 +504,6 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
                       );
                       await _loadMyRides();
                     },
-                    backgroundColor: AppColors.primary,
                   ),
                 ),
               if (hasPendingRequests) const SizedBox(width: 8),
@@ -457,15 +511,15 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
                 child: CustomButton(
                   text: 'Edit',
                   onPressed: () async {
-                    await Navigator.pushNamed(
+                    final result = await Navigator.pushNamed(
                       context,
                       AppRoutes.editRide,
                       arguments: ride,
                     );
-                    await _loadMyRides();
+                    if (result == true && mounted) {
+                      await _loadMyRides();
+                    }
                   },
-                  isOutlined: false,
-                  backgroundColor: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 8),
@@ -473,7 +527,7 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
                 height: 45,
                 width: 45,
                 decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.primary),
+                  border: Border.all(color: Colors.red.shade300),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: IconButton(

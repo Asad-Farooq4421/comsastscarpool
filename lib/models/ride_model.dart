@@ -1,11 +1,13 @@
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 class Ride {
   final String rideId;
   final String driverId;
   final String driverName;
   final String driverPhoto;
   final double driverRating;
-  final String from;
-  final String destination;
+  final String from;        // Pickup location NAME
+  final String destination; // Dropoff location NAME
   final String date;
   final String time;
   final int totalSeats;
@@ -15,6 +17,16 @@ class Ride {
   final String notes;
   final int pendingRequests;
   final List<PassengerInfo> passengers;
+
+  // Google Maps coordinates
+  final double? pickupLatitude;
+  final double? pickupLongitude;
+  final double? dropoffLatitude;
+  final double? dropoffLongitude;
+
+  // Full formatted addresses
+  final String? pickupAddress;
+  final String? dropoffAddress;
 
   Ride({
     required this.rideId,
@@ -33,6 +45,12 @@ class Ride {
     required this.notes,
     required this.pendingRequests,
     required this.passengers,
+    this.pickupLatitude,
+    this.pickupLongitude,
+    this.dropoffLatitude,
+    this.dropoffLongitude,
+    this.pickupAddress,
+    this.dropoffAddress,
   });
 
   // From JSON (Firebase)
@@ -56,6 +74,12 @@ class Ride {
       passengers: (json['passengers'] as List? ?? [])
           .map((p) => PassengerInfo.fromJson(Map<String, dynamic>.from(p)))
           .toList(),
+      pickupLatitude: json['pickupLatitude'] != null ? (json['pickupLatitude'] as num).toDouble() : null,
+      pickupLongitude: json['pickupLongitude'] != null ? (json['pickupLongitude'] as num).toDouble() : null,
+      dropoffLatitude: json['dropoffLatitude'] != null ? (json['dropoffLatitude'] as num).toDouble() : null,
+      dropoffLongitude: json['dropoffLongitude'] != null ? (json['dropoffLongitude'] as num).toDouble() : null,
+      pickupAddress: json['pickupAddress'] ?? json['from'],
+      dropoffAddress: json['dropoffAddress'] ?? json['destination'],
     );
   }
 
@@ -77,17 +101,34 @@ class Ride {
       'notes': notes,
       'pendingRequests': pendingRequests,
       'passengers': passengers.map((p) => p.toJson()).toList(),
+      if (pickupLatitude != null) 'pickupLatitude': pickupLatitude,
+      if (pickupLongitude != null) 'pickupLongitude': pickupLongitude,
+      if (dropoffLatitude != null) 'dropoffLatitude': dropoffLatitude,
+      if (dropoffLongitude != null) 'dropoffLongitude': dropoffLongitude,
+      'pickupAddress': pickupAddress ?? from,
+      'dropoffAddress': dropoffAddress ?? destination,
     };
   }
 
-  // Helper to get filled seats count
+  // Helper getters
   int get filledSeats => totalSeats - availableSeats;
-
-  // Helper to check if ride is active
   bool get isActive => status == 'active' || status == 'scheduled';
-
-  // Helper to get price per seat as string
+  bool get hasCoordinates => pickupLatitude != null && pickupLongitude != null;
   String get priceString => 'Rs. $price';
+
+  LatLng? get pickupLatLng {
+    if (pickupLatitude != null && pickupLongitude != null) {
+      return LatLng(pickupLatitude!, pickupLongitude!);
+    }
+    return null;
+  }
+
+  LatLng? get dropoffLatLng {
+    if (dropoffLatitude != null && dropoffLongitude != null) {
+      return LatLng(dropoffLatitude!, dropoffLongitude!);
+    }
+    return null;
+  }
 
   Ride copyWith({
     String? rideId,
@@ -106,6 +147,12 @@ class Ride {
     String? notes,
     int? pendingRequests,
     List<PassengerInfo>? passengers,
+    double? pickupLatitude,
+    double? pickupLongitude,
+    double? dropoffLatitude,
+    double? dropoffLongitude,
+    String? pickupAddress,
+    String? dropoffAddress,
   }) {
     return Ride(
       rideId: rideId ?? this.rideId,
@@ -124,10 +171,19 @@ class Ride {
       notes: notes ?? this.notes,
       pendingRequests: pendingRequests ?? this.pendingRequests,
       passengers: passengers ?? this.passengers,
+      pickupLatitude: pickupLatitude ?? this.pickupLatitude,
+      pickupLongitude: pickupLongitude ?? this.pickupLongitude,
+      dropoffLatitude: dropoffLatitude ?? this.dropoffLatitude,
+      dropoffLongitude: dropoffLongitude ?? this.dropoffLongitude,
+      pickupAddress: pickupAddress ?? this.pickupAddress,
+      dropoffAddress: dropoffAddress ?? this.dropoffAddress,
     );
   }
 }
 
+// ============================================
+// PassengerInfo Class (MUST be defined here)
+// ============================================
 class PassengerInfo {
   final String userId;
   final String name;

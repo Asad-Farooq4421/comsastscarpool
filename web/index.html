@@ -29,6 +29,16 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBHMz2ya8SWcRLceJBGGSItVZ_GHzl6elI&libraries=places"></script>
+  <script>
+    // Check if geolocation is supported
+    if (navigator.geolocation) {
+      console.log('Geolocation is supported');
+    } else {
+      console.log('Geolocation is not supported');
+    }
+  </script>
+  
   <title>comsastscarpool</title>
   <link rel="manifest" href="manifest.json">
 </head>
