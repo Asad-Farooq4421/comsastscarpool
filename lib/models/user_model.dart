@@ -46,34 +46,134 @@ class AppUser {
   });
 
   // Convert from JSON (Firebase Realtime DB)
-  factory AppUser.fromJson(Map<String, dynamic> json, String uid) {
+  factory AppUser.fromJson(
+      Map<String, dynamic> json,
+      String uid,
+      ) {
     return AppUser(
       uid: uid,
-      email: json['email'] ?? '',
-      name: json['name'] ?? '',
-      photo: json['photo'],
-      university: json['university'] ?? 'COMSATS Islamabad',
-      phone: json['phone'],
-      bio: json['bio'],
+
+      email: json['email']?.toString() ?? '',
+
+      name: json['name']?.toString() ?? '',
+
+      photo: json['photo']?.toString(),
+
+      university:
+      json['university']?.toString() ??
+          'COMSATS Islamabad',
+
+      phone: json['phone']?.toString(),
+
+      bio: json['bio']?.toString(),
+
       isDriver: json['isDriver'] ?? false,
-      ridesAsDriver: json['ridesAsDriver'] ?? 0,
-      driverRating: (json['driverRating'] ?? 0.0).toDouble(),
-      earnings: json['earnings'] ?? 0,
-      vehicleType: json['vehicleType'] ?? '',
-      vehicleModel: json['vehicleModel'] ?? '',
-      vehicleColor: json['vehicleColor'] ?? '',
-      vehiclePlate: json['vehiclePlate'] ?? '',
-      vehicleSeats: json['vehicleSeats'] ?? 0,
-      ridesAsPassenger: json['ridesAsPassenger'] ?? 0,
-      passengerRating: (json['passengerRating'] ?? 0.0).toDouble(),
-      savedRoutes: json['savedRoutes'] ?? 0,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+
+      ridesAsDriver:
+      (json['ridesAsDriver'] ?? 0) is int
+          ? json['ridesAsDriver']
+          : int.tryParse(
+        json['ridesAsDriver'].toString(),
+      ) ??
+          0,
+
+      driverRating:
+      (json['driverRating'] ?? 0)
+          .toDouble(),
+
+      earnings:
+      (json['earnings'] ?? 0) is int
+          ? json['earnings']
+          : int.tryParse(
+        json['earnings'].toString(),
+      ) ??
+          0,
+
+      vehicleType:
+      json['vehicleType']?.toString() ?? '',
+
+      vehicleModel:
+      json['vehicleModel']?.toString() ?? '',
+
+      vehicleColor:
+      json['vehicleColor']?.toString() ?? '',
+
+      vehiclePlate:
+      json['vehiclePlate']?.toString() ?? '',
+
+      vehicleSeats:
+      (json['vehicleSeats'] ?? 0) is int
+          ? json['vehicleSeats']
+          : int.tryParse(
+        json['vehicleSeats'].toString(),
+      ) ??
+          0,
+
+      ridesAsPassenger:
+      (json['ridesAsPassenger'] ?? 0) is int
+          ? json['ridesAsPassenger']
+          : int.tryParse(
+        json['ridesAsPassenger'].toString(),
+      ) ??
+          0,
+
+      passengerRating:
+      (json['passengerRating'] ?? 0)
+          .toDouble(),
+
+      savedRoutes:
+      (json['savedRoutes'] ?? 0) is int
+          ? json['savedRoutes']
+          : int.tryParse(
+        json['savedRoutes'].toString(),
+      ) ??
+          0,
+
+      // FIXED CREATED AT
+      createdAt: _parseFirebaseDate(
+        json['createdAt'],
+      ),
+
+      // FIXED LAST SEEN
       lastSeen: json['lastSeen'] != null
-          ? DateTime.parse(json['lastSeen'])
+          ? _parseFirebaseDate(
+        json['lastSeen'],
+      )
           : null,
     );
   }
 
+  static DateTime _parseFirebaseDate(dynamic value) {
+
+    if (value == null) {
+      return DateTime.now();
+    }
+
+    // Timestamp int
+    if (value is int) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        value,
+      );
+    }
+
+    // Timestamp string number
+    if (value is String) {
+
+      final intValue = int.tryParse(value);
+
+      if (intValue != null) {
+        return DateTime.fromMillisecondsSinceEpoch(
+          intValue,
+        );
+      }
+
+      // ISO date string
+      return DateTime.tryParse(value) ??
+          DateTime.now();
+    }
+
+    return DateTime.now();
+  }
   // Convert to JSON for Firebase
   Map<String, dynamic> toJson() {
     return {
