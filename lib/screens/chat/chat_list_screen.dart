@@ -6,6 +6,7 @@ import '../../models/chat_model.dart';
 import '../../services/chat_service.dart';
 import '../../services/user_service.dart';
 import '../../utils/routes.dart';
+import '../../utils/time_formatter.dart';
 import '../chat/individual_chat_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -325,23 +326,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
+  // ✅ Using TimeFormatter for consistent timestamp formatting
   String _formatTime(String timestamp) {
-    try {
-      final dateTime = DateTime.parse(timestamp);
-      final now = DateTime.now();
-      final difference = now.difference(dateTime);
-
-      if (difference.inDays > 0) {
-        return '${difference.inDays}d ago';
-      } else if (difference.inHours > 0) {
-        return '${difference.inHours}h ago';
-      } else if (difference.inMinutes > 0) {
-        return '${difference.inMinutes}m ago';
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return '';
-    }
+    return TimeFormatter.formatMessageTimestamp(timestamp);
   }
 }
