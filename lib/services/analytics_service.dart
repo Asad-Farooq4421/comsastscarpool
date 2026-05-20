@@ -11,23 +11,20 @@ class AnalyticsService {
 
   // ==================== USER JOURNEY EVENTS ====================
 
-  static Future<void> logUserLogin(String method) async {
+  static Future<void> logLogin(String method) async {
     await _analytics.logLogin(loginMethod: method);
   }
 
-  static Future<void> logUserSignup(String method) async {
+  static Future<void> logSignup(String method) async {
     await _analytics.logSignUp(signUpMethod: method);
   }
 
-  static Future<void> logUserLogout() async {
-    await _analytics.logEvent(name: 'user_logout');
+  static Future<void> logLogout() async {
+    await _analytics.logEvent(name: 'logout');
   }
 
-  static Future<void> logProfileUpdate({String? fieldUpdated}) async {
-    await _analytics.logEvent(
-      name: 'profile_update',
-      parameters: fieldUpdated != null ? {'field_updated': fieldUpdated} : null,
-    );
+  static Future<void> logProfileUpdate() async {
+    await _analytics.logEvent(name: 'profile_update');
   }
 
   // ==================== ROLE SWITCHING EVENTS ====================
@@ -37,19 +34,6 @@ class AnalyticsService {
       name: 'role_switch',
       parameters: {'role': role},
     );
-  }
-
-  static Future<void> logBecameDriver({required bool hasVehicle}) async {
-    await _analytics.logEvent(
-      name: 'became_driver',
-      parameters: {'has_vehicle': hasVehicle},
-    );
-  }
-
-  // ==================== LOGOUT ====================
-
-  static Future<void> logLogout() async {
-    await _analytics.logEvent(name: 'logout');
   }
 
   // ==================== RIDE RELATED EVENTS ====================
@@ -131,14 +115,12 @@ class AnalyticsService {
   static Future<void> logRideCompleted({
     required String rideId,
     required double rating,
-    int? duration,
   }) async {
     await _analytics.logEvent(
       name: 'ride_completed',
       parameters: {
         'ride_id': rideId,
         'rating': rating,
-        if (duration != null) 'duration_minutes': duration,
       },
     );
   }

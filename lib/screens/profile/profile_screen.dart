@@ -65,6 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _loadUserProfile();
 
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       AnalyticsService.logScreenView('profile_screen');
     });
