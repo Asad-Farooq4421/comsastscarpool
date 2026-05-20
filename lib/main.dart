@@ -27,6 +27,7 @@ import 'screens/profile/safety_center_screen.dart';
 import 'screens/profile/emergency_contacts_screen.dart';
 
 import 'screens/chat/chat_list_screen.dart';
+import 'screens/chat/individual_chat_screen.dart';
 
 import 'utils/routes.dart';
 import 'firebase_options.dart';
@@ -87,11 +88,11 @@ class CampusCarpoolApp extends StatelessWidget {
         AppRoutes.onboarding: (context) => const OnboardingScreen(),
         AppRoutes.login: (context) => const LoginScreen(),
         AppRoutes.signup: (context) => const SignupScreen(),
-        AppRoutes.profile: (context) => const ProfileScreen(),  // ✅ UNCOMMENTED
+        AppRoutes.profile: (context) => const ProfileScreen(),
         AppRoutes.settings: (context) => const SettingsScreen(),
         AppRoutes.main: (context) => const MainScreen(),
         AppRoutes.chatList: (context) => const ChatListScreen(),
-        // AppRoutes.individualChat: (context) => const IndividualChatScreen(), // Uncomment when ready
+       // AppRoutes.individualChat: (context) => const IndividualChatScreen(),
         AppRoutes.postRide: (context) => const PostRideScreen(),
         AppRoutes.editRide: (context) => const EditRideScreen(),
         AppRoutes.rideRequests: (context) => const RideRequestsInboxScreen(),

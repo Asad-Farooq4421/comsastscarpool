@@ -7,6 +7,7 @@ import '../../widgets/custom_button.dart';
 import '../../services/ride_service.dart';
 import '../../services/user_service.dart';
 import '../../services/location_service.dart';
+import '../../services/gemini_service.dart';  // ✅ ADDED
 import '../../models/ride_model.dart';
 import 'location_picker_screen.dart';
 
@@ -39,6 +40,7 @@ class _PostRideScreenState extends State<PostRideScreen> {
   final LocationService _locationService = LocationService();
 
   bool _isPosting = false;
+  bool _isGettingAIPrice = false;  // ✅ ADDED
   String? _currentUserId;
   String? _currentUserName;
   double _driverRating = 0.0;
@@ -60,6 +62,65 @@ class _PostRideScreenState extends State<PostRideScreen> {
       final userProfile = await _userService.getUserProfile(_currentUserId!);
       setState(() {
         _driverRating = userProfile?.driverRating ?? 0.0;
+      });
+    }
+  }
+
+  // ✅ ADDED: AI Price Suggestion Method
+  Future<void> _getAIPriceSuggestion() async {
+    if (formData['from']!.isEmpty || formData['to']!.isEmpty) {
+      _showErrorSnackbar('Please select pickup and dropoff locations first');
+      return;
+    }
+
+    if (formData['seats']!.isEmpty) {
+      _showErrorSnackbar('Please select number of seats first');
+      return;
+    }
+
+    setState(() {
+      _isGettingAIPrice = true;
+    });
+
+    // Show thinking message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🤖 AI is analyzing route and traffic...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    final price = await GeminiService.suggestPrice(
+      from: formData['from']!,
+      to: formData['to']!,
+      time: formData['time']!.isEmpty ? '12:00 PM' : formData['time']!,
+      seats: int.tryParse(formData['seats'] ?? '1') ?? 1,
+    );
+
+    setState(() {
+      _isGettingAIPrice = false;
+    });
+
+    if (price != null && price > 0) {
+      setState(() {
+        formData['price'] = price.toString();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('🤖 AI suggested price: Rs. $price per seat'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('AI temporarily unavailable. Using default pricing.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      // Fallback to default calculation
+      setState(() {
+        formData['price'] = '150';
       });
     }
   }
@@ -754,34 +815,53 @@ class _PostRideScreenState extends State<PostRideScreen> {
         ),
         const SizedBox(height: 20),
 
+        // ✅ MODIFIED: Price field with AI button
         Text(
           'Price per Seat *',
           style: AppTextStyles.inputLabel,
         ),
         const SizedBox(height: 8),
-        TextField(
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            hintText: 'Enter price',
-            hintStyle: AppTextStyles.inputHint,
-            prefixIcon: const Icon(Icons.currency_rupee, color: Colors.grey),
-            suffixText: 'PKR',
-            suffixStyle: AppTextStyles.bodyMedium,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextField(
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Enter price',
+                  hintStyle: AppTextStyles.inputHint,
+                  prefixIcon: const Icon(Icons.currency_rupee, color: Colors.grey),
+                  suffixText: 'PKR',
+                  suffixStyle: AppTextStyles.bodyMedium,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onChanged: (value) => formData['price'] = value,
+              ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: CustomButton(
+                text: _isGettingAIPrice ? 'Thinking...' : '🤖 AI Suggest',
+                onPressed: _getAIPriceSuggestion,
+                isLoading: _isGettingAIPrice,
+                backgroundColor: Colors.purple,
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary),
-            ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-          onChanged: (value) => formData['price'] = value,
+          ],
         ),
         const SizedBox(height: 8),
         Text(
