@@ -7,7 +7,7 @@ import '../../widgets/custom_button.dart';
 import '../../services/ride_service.dart';
 import '../../services/user_service.dart';
 import '../../services/location_service.dart';
-import '../../services/gemini_service.dart';  // ✅ ADDED
+import '../../services/gemini_service.dart';
 import '../../models/ride_model.dart';
 import 'location_picker_screen.dart';
 
@@ -40,7 +40,8 @@ class _PostRideScreenState extends State<PostRideScreen> {
   final LocationService _locationService = LocationService();
 
   bool _isPosting = false;
-  bool _isGettingAIPrice = false;  // ✅ ADDED
+  bool _isGettingAIPrice = false;
+  String? _priceSuggestionMessage;
   String? _currentUserId;
   String? _currentUserName;
   double _driverRating = 0.0;
@@ -66,15 +67,24 @@ class _PostRideScreenState extends State<PostRideScreen> {
     }
   }
 
-  // ✅ ADDED: AI Price Suggestion Method
-  Future<void> _getAIPriceSuggestion() async {
+  // AI Price Suggestion Method with auto-set option
+  Future<void> _getAIPriceSuggestion({bool autoSet = false}) async {
     if (formData['from']!.isEmpty || formData['to']!.isEmpty) {
-      _showErrorSnackbar('Please select pickup and dropoff locations first');
+      if (!autoSet) {
+        _showErrorSnackbar('Please select pickup and dropoff locations first');
+      }
       return;
     }
 
     if (formData['seats']!.isEmpty) {
-      _showErrorSnackbar('Please select number of seats first');
+      if (!autoSet) {
+        _showErrorSnackbar('Please select number of seats first');
+      }
+      return;
+    }
+
+    // Don't auto-suggest if price already set by user (not empty and not default)
+    if (autoSet && formData['price']!.isNotEmpty && formData['price'] != '0') {
       return;
     }
 
@@ -82,45 +92,66 @@ class _PostRideScreenState extends State<PostRideScreen> {
       _isGettingAIPrice = true;
     });
 
-    // Show thinking message
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🤖 AI is analyzing route and traffic...'),
-        duration: Duration(seconds: 1),
-      ),
-    );
+    // Calculate distance
+    double distanceKm = 0;
+    if (_pickupLatLng != null && _dropoffLatLng != null) {
+      distanceKm = _locationService.calculateDistanceInKm(
+        _pickupLatLng!,
+        _dropoffLatLng!,
+      );
+    }
 
-    final price = await GeminiService.suggestPrice(
-      from: formData['from']!,
-      to: formData['to']!,
-      time: formData['time']!.isEmpty ? '12:00 PM' : formData['time']!,
-      seats: int.tryParse(formData['seats'] ?? '1') ?? 1,
+    // Get area names
+    final pickupArea = formData['from']!.split(',').first;
+    final dropoffArea = formData['to']!.split(',').first;
+    final seats = int.tryParse(formData['seats']!) ?? 1;
+    final timeOfDay = formData['time']!.isEmpty ? '12:00 PM' : formData['time']!;
+    final date = formData['date']!.isEmpty ? DateTime.now().toIso8601String().split('T')[0] : formData['date']!;
+
+    final price = await GeminiService().predictPrice(
+      distanceKm: distanceKm,
+      pickupArea: pickupArea,
+      dropoffArea: dropoffArea,
+      availableSeats: seats,
+      timeOfDay: timeOfDay,
+      date: date,
     );
 
     setState(() {
       _isGettingAIPrice = false;
     });
 
-    if (price != null && price > 0) {
+    if (price > 0) {
       setState(() {
         formData['price'] = price.toString();
+        _priceSuggestionMessage = '🤖 AI suggested: Rs. $price per seat (${distanceKm.toStringAsFixed(1)} km)';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('🤖 AI suggested price: Rs. $price per seat'),
-          backgroundColor: Colors.green,
-        ),
-      );
+
+      if (!autoSet) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('🤖 AI suggested price: Rs. $price per seat'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('AI temporarily unavailable. Using default pricing.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      // Fallback to default calculation
       setState(() {
-        formData['price'] = '150';
+        _priceSuggestionMessage = null;
+      });
+      if (!autoSet) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('AI temporarily unavailable. Using default pricing.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      // Fallback to default calculation
+      final fallbackPrice = (distanceKm * 18).round().clamp(100, 300);
+      setState(() {
+        formData['price'] = fallbackPrice.toString();
       });
     }
   }
@@ -136,7 +167,11 @@ class _PostRideScreenState extends State<PostRideScreen> {
             print('📍 Pickup selected: $address');
             setState(() {
               _pickupLatLng = location;
-              formData['from'] = address; // Store the actual address name
+              formData['from'] = address;
+              // Auto-suggest price when location changes and seats are selected
+              if (formData['seats']!.isNotEmpty && formData['to']!.isNotEmpty) {
+                _getAIPriceSuggestion(autoSet: true);
+              }
             });
           },
         ),
@@ -155,7 +190,11 @@ class _PostRideScreenState extends State<PostRideScreen> {
             print('📍 Dropoff selected: $address');
             setState(() {
               _dropoffLatLng = location;
-              formData['to'] = address; // Store the actual address name
+              formData['to'] = address;
+              // Auto-suggest price when location changes and seats are selected
+              if (formData['seats']!.isNotEmpty && formData['from']!.isNotEmpty) {
+                _getAIPriceSuggestion(autoSet: true);
+              }
             });
           },
         ),
@@ -295,6 +334,7 @@ class _PostRideScreenState extends State<PostRideScreen> {
             formData.updateAll((key, value) => '');
             _pickupLatLng = null;
             _dropoffLatLng = null;
+            _priceSuggestionMessage = null;
           });
           Navigator.pop(context, true);
         }
@@ -680,6 +720,12 @@ class _PostRideScreenState extends State<PostRideScreen> {
               setState(() {
                 formData['date'] = '${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}';
               });
+              // Auto-suggest price when date changes and other fields are filled
+              if (formData['seats']!.isNotEmpty &&
+                  formData['from']!.isNotEmpty &&
+                  formData['to']!.isNotEmpty) {
+                _getAIPriceSuggestion(autoSet: true);
+              }
             }
           },
           child: Container(
@@ -741,6 +787,13 @@ class _PostRideScreenState extends State<PostRideScreen> {
                 final period = pickedTime.period == DayPeriod.am ? 'AM' : 'PM';
                 formData['time'] = '$hour:$minute $period';
               });
+
+              // Auto-suggest price when time changes and other fields are filled
+              if (formData['seats']!.isNotEmpty &&
+                  formData['from']!.isNotEmpty &&
+                  formData['to']!.isNotEmpty) {
+                _getAIPriceSuggestion(autoSet: true);
+              }
             }
           },
           child: Container(
@@ -811,11 +864,14 @@ class _PostRideScreenState extends State<PostRideScreen> {
             setState(() {
               formData['seats'] = value!;
             });
+            // Auto-suggest price when seats are selected and locations exist
+            if (formData['from']!.isNotEmpty && formData['to']!.isNotEmpty) {
+              _getAIPriceSuggestion(autoSet: true);
+            }
           },
         ),
         const SizedBox(height: 20),
 
-        // ✅ MODIFIED: Price field with AI button
         Text(
           'Price per Seat *',
           style: AppTextStyles.inputLabel,
@@ -828,6 +884,8 @@ class _PostRideScreenState extends State<PostRideScreen> {
               flex: 3,
               child: TextField(
                 keyboardType: TextInputType.number,
+                controller: TextEditingController(text: formData['price'])
+                  ..selection = TextSelection.collapsed(offset: formData['price']!.length),
                 decoration: InputDecoration(
                   hintText: 'Enter price',
                   hintStyle: AppTextStyles.inputHint,
@@ -856,7 +914,7 @@ class _PostRideScreenState extends State<PostRideScreen> {
               flex: 2,
               child: CustomButton(
                 text: _isGettingAIPrice ? 'Thinking...' : '🤖 AI Suggest',
-                onPressed: _getAIPriceSuggestion,
+                onPressed: () => _getAIPriceSuggestion(autoSet: false),
                 isLoading: _isGettingAIPrice,
                 backgroundColor: Colors.purple,
               ),
@@ -864,12 +922,24 @@ class _PostRideScreenState extends State<PostRideScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          'Suggested: Rs. 100 - Rs. 300 per seat',
-          style: AppTextStyles.caption.copyWith(
-            color: AppColors.textSecondary,
+        if (_priceSuggestionMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Text(
+              _priceSuggestionMessage!,
+              style: AppTextStyles.caption.copyWith(
+                color: Colors.purple,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          )
+        else
+          Text(
+            '💡 Price will be auto-suggested when you select seats',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
-        ),
       ],
     );
   }
@@ -940,6 +1010,15 @@ class _PostRideScreenState extends State<PostRideScreen> {
               _buildSummaryRow('Seats:', '${formData['seats']} available'),
               const SizedBox(height: 8),
               _buildSummaryRow('Price:', 'Rs. ${formData['price']}/seat', isPrice: true),
+              if (_priceSuggestionMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Icon(
+                    Icons.auto_awesome,
+                    size: 14,
+                    color: Colors.purple.shade400,
+                  ),
+                ),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
-  import 'package:comsastscarpool/services/google_place_service.dart';
+  import 'package:comsastscarpool/services/gemini_service.dart';
+import 'package:comsastscarpool/services/google_place_service.dart';
   import 'package:flutter/material.dart';
 
   import 'package:firebase_core/firebase_core.dart';
@@ -45,6 +46,7 @@
     GooglePlacesService.initialize('AIzaSyBHMz2ya8SWcRLceJBGGSItVZ_GHzl6elI');
     print('Google Places Service initialized with API key');
 
+    GeminiService().initialize('AIzaSyD_4Cpl0eybDVvijS544lJwfc0IUZv3q6A');
     // Realtime Database Persistence (NOT supported on Web)
     if (!kIsWeb) {
       FirebaseDatabase.instance.setPersistenceEnabled(true);

@@ -31,61 +31,58 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Refresh when coming back from edit/post
-    if (_currentUserId != null) {
-      _loadMyRides();
-    }
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _loadCurrentUser() async {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null) {
-      setState(() {
-        _currentUserId = currentUser.uid;
-      });
+    if (currentUser == null) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
 
-      // Load user profile for name
-      final userProfile = await _userService.getUserProfile(_currentUserId!);
+    setState(() {
+      _currentUserId = currentUser.uid;
+    });
+
+    final userProfile = await _userService.getUserProfile(_currentUserId!);
+    if (mounted) {
       setState(() {
         _driverName = userProfile?.name ?? 'Driver';
       });
-
-      await _loadMyRides();
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
     }
+
+    await _loadMyRides();
   }
 
   Future<void> _loadMyRides() async {
     if (_currentUserId == null) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       final rides = await _rideService.getRidesByDriverId(_currentUserId!);
       print('✅ Loaded ${rides.length} rides for driver $_currentUserId');
 
-      // Print each ride for debugging
-      for (var ride in rides) {
-        print('  - Ride: ${ride.from} → ${ride.destination} (${ride.status})');
+      if (mounted) {
+        setState(() {
+          _myRides = rides;
+          _isLoading = false;
+        });
       }
-
-      setState(() {
-        _myRides = rides;
-        _isLoading = false;
-      });
     } catch (e) {
       print('❌ Error loading my rides: $e');
-      setState(() {
-        _myRides = [];
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _myRides = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -107,9 +104,9 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
   }
 
   Future<void> _deleteRide(Ride ride) async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
 
     try {
       await _rideService.deleteRide(ride.rideId);
@@ -133,9 +130,9 @@ class _MyPostedRidesScreenState extends State<MyPostedRidesScreen> {
         );
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
