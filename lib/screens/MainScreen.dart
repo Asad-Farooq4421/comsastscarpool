@@ -35,25 +35,37 @@ class _MainScreenState extends State<MainScreen> {
     _initializeApp();
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   // ================= FIREBASE INITIALIZATION =================
   Future<void> _initializeApp() async {
+    if (!mounted) return; // ✅ FIXED: Check if widget is still mounted
+
     setState(() => _isLoading = true);
 
     final firebaseUser = FirebaseAuth.instance.currentUser;
 
     if (firebaseUser == null) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
       return;
     }
 
-    final userProfile =
-    await _userService.getUserProfile(firebaseUser.uid);
+    final userProfile = await _userService.getUserProfile(firebaseUser.uid);
+
+    if (!mounted) return; // ✅ FIXED: Check before setState
 
     _isDriverMode = userProfile?.isDriver ?? false;
 
     await _loadUserRides();
 
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   // ================= LOAD RIDES =================
@@ -70,22 +82,34 @@ class _MainScreenState extends State<MainScreen> {
         rides = await _rideService.getRidesByPassengerId(firebaseUser.uid);
       }
 
-      setState(() {
-        _userRides = rides;
-      });
+      // ✅ FIXED: Check mounted before setState
+      if (mounted) {
+        setState(() {
+          _userRides = rides;
+        });
+      }
     } catch (e) {
       debugPrint("Error loading rides: $e");
-      setState(() {
-        _userRides = [];
-      });
+      if (mounted) {
+        setState(() {
+          _userRides = [];
+        });
+      }
     }
   }
 
   // ================= SWITCH TAB =================
   void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    if (mounted) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
+  }
+
+  // ================= REFRESH RIDES =================
+  Future<void> _refreshRides() async {
+    await _loadUserRides();
   }
 
   // ================= BUILD =================
@@ -114,29 +138,35 @@ class _MainScreenState extends State<MainScreen> {
           _isDriverMode
               ? DriverHomeScreen(
             onSwitch: () {
-              setState(() {
-                _isDriverMode = false;
-              });
-              _loadUserRides();
+              if (mounted) {
+                setState(() {
+                  _isDriverMode = false;
+                });
+                _loadUserRides();
+              }
             },
           )
               : SearchScreen(
             onSwitch: () {
-              setState(() {
-                _isDriverMode = true;
-              });
-              _loadUserRides();
+              if (mounted) {
+                setState(() {
+                  _isDriverMode = true;
+                });
+                _loadUserRides();
+              }
             },
             onNavigateToProfile: () {
               ProfileScreen.shouldSwitchToDriver = true;
-              setState(() => _currentIndex = 3);
+              if (mounted) {
+                setState(() => _currentIndex = 3);
+              }
             },
           ),
 
           // ================= MY RIDES =================
           MyRidesScreen(
             allRides: _userRides,
-            onRideUpdate: _loadUserRides,
+            onRideUpdate: _refreshRides,
           ),
 
           // ================= CHAT =================
@@ -145,7 +175,7 @@ class _MainScreenState extends State<MainScreen> {
           // ================= PROFILE =================
           ProfileScreen(
             onProfileUpdated: () async {
-              await _initializeApp(); // refresh Firebase data
+              await _initializeApp();
             },
           ),
         ],
