@@ -113,22 +113,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.3"
-  dio:
-    dependency: transitive
-    description:
-      name: dio
-      sha256: aff32c08f92787a557dd5c0145ac91536481831a01b4648136373cddb0e64f8c
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.9.2"
-  dio_web_adapter:
-    dependency: transitive
-    description:
-      name: dio_web_adapter
-      sha256: "2f9e64323a7c3c7ef69567d5c800424a11f8337b8b228bad02524c9fb3c1f340"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.2"
   email_validator:
     dependency: "direct main"
     description:
@@ -137,6 +121,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.17"
+  equatable:
+    dependency: transitive
+    description:
+      name: equatable
+      sha256: "3e0141505477fd8ad55d6eb4e7776d3fe8430be8e497ccb1521370c3f21a3e2b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -193,6 +185,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.9.3+5"
+  firebase_analytics:
+    dependency: "direct main"
+    description:
+      name: firebase_analytics
+      sha256: "4f85b161772e1d54a66893ef131c0a44bd9e552efa78b33d5f4f60d2caa5c8a3"
+      url: "https://pub.dev"
+    source: hosted
+    version: "11.6.0"
+  firebase_analytics_platform_interface:
+    dependency: transitive
+    description:
+      name: firebase_analytics_platform_interface
+      sha256: a44b6d1155ed5cae7641e3de7163111cfd9f6f6c954ca916dc6a3bdfa86bf845
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.4.3"
+  firebase_analytics_web:
+    dependency: transitive
+    description:
+      name: firebase_analytics_web
+      sha256: c7d1ed1f86ae64215757518af5576ff88341c8ce5741988c05cc3b2e07b0b273
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.10+16"
   firebase_auth:
     dependency: "direct main"
     description:
@@ -273,6 +289,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  fl_chart:
+    dependency: "direct main"
+    description:
+      name: fl_chart
+      sha256: "5276944c6ffc975ae796569a826c38a62d2abcf264e26b88fa6f482e107f4237"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.70.2"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -302,14 +326,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.34"
-  flutter_polyline_points:
-    dependency: "direct main"
-    description:
-      name: flutter_polyline_points
-      sha256: "3a1c8c30abee9fb0fbe44c70d5d1cedb10ef28ec7ea285c669f02b3e183483aa"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.0"
   flutter_svg:
     dependency: "direct main"
     description:
@@ -340,10 +356,10 @@ packages:
     dependency: "direct main"
     description:
       name: geocoding
-      sha256: "790eea732b22a08dd36fc3761bcd29040461ac20ece4d165264a6c0b5338f115"
+      sha256: d580c801cba9386b4fac5047c4c785a4e19554f46be42f4f5e5b7deacd088a66
       url: "https://pub.dev"
     source: hosted
-    version: "2.2.2"
+    version: "3.0.0"
   geocoding_android:
     dependency: transitive
     description:
@@ -356,10 +372,10 @@ packages:
     dependency: transitive
     description:
       name: geocoding_ios
-      sha256: "8a39bfb650af55209c42e564036a550b32d029e0733af01dc66c5afea50388d3"
+      sha256: "18ab1c8369e2b0dcb3a8ccc907319334f35ee8cf4cfef4d9c8e23b13c65cb825"
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.0"
+    version: "3.1.0"
   geocoding_platform_interface:
     dependency: transitive
     description:
@@ -401,7 +417,7 @@ packages:
     source: hosted
     version: "4.2.6"
   geolocator_web:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: geolocator_web
       sha256: "102e7da05b48ca6bf0a5bda0010f886b171d1a08059f01bfe02addd0175ebece"
@@ -444,10 +460,10 @@ packages:
     dependency: "direct main"
     description:
       name: google_maps_flutter
-      sha256: "9b0d6dab3de6955837575dc371dd772fcb5d0a90f6a4954e8c066472f9938550"
+      sha256: fc714bf8072e2c121d4277cb6dca23bbfae954b6c7b5d6dd73f1bc8d09762921
       url: "https://pub.dev"
     source: hosted
-    version: "2.14.2"
+    version: "2.17.0"
   google_maps_flutter_android:
     dependency: transitive
     description:
@@ -473,21 +489,13 @@ packages:
     source: hosted
     version: "2.15.0"
   google_maps_flutter_web:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: google_maps_flutter_web
-      sha256: d416602944e1859f3cbbaa53e34785c223fa0a11eddb34a913c964c5cbb5d8cf
+      sha256: "9b068070bf18b5ec6a7d8ac512c7d557377dbe267658d264d2095b7ee4f1f6c5"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.14+3"
-  google_places_flutter:
-    dependency: "direct main"
-    description:
-      name: google_places_flutter
-      sha256: "37bd64221cf4a5aa97eb3a33dc2d40f6326aa5ae4e2f2a9a7116bdc1a14f5194"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.1"
+    version: "0.6.2+1"
   hooks:
     dependency: transitive
     description:
@@ -505,7 +513,7 @@ packages:
     source: hosted
     version: "0.15.6"
   http:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -840,14 +848,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
-  rxdart:
-    dependency: transitive
-    description:
-      name: rxdart
-      sha256: "5c3004a4a8dbb94bd4bf5412a4def4acdaa12e12f269737a5751369e12d1a962"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.28.0"
   sanitize_html:
     dependency: transitive
     description:

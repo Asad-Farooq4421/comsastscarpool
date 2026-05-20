@@ -8,6 +8,7 @@ import '../../models/ride_model.dart';
 import '../../widgets/role_toggle.dart';
 import '../../widgets/ride_card.dart';
 import 'ride_details_screen.dart';
+import '../profile/profile_screen.dart';  // ✅ ADD THIS IMPORT
 
 class SearchScreen extends StatefulWidget {
   final VoidCallback onSwitch;
@@ -151,6 +152,8 @@ class _SearchScreenState extends State<SearchScreen> {
     ).then((confirmed) {
       if (confirmed == true) {
         _hasShownDriverPopup = true;
+        // ✅ FIX: Set flag to switch to Driver mode on Profile Screen
+        ProfileScreen.shouldSwitchToDriver = true;
         widget.onNavigateToProfile();
       }
     });
@@ -205,7 +208,6 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  // FIXED: Changed to Future<void> for RefreshIndicator
   Future<void> _refreshRides() async {
     await _loadRides();
     if (hasSearched) {
@@ -218,7 +220,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: RefreshIndicator(
-        onRefresh: _refreshRides, // Now this works because it returns Future<void>
+        onRefresh: _refreshRides,
         child: SafeArea(
           child: Column(
             children: [

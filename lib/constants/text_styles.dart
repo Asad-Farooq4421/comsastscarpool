@@ -32,6 +32,12 @@ class AppTextStyles {
     color: AppColors.textPrimary,
   );
 
+  static const TextStyle bodySmall = TextStyle(  // ✅ ADD THIS
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textSecondary,
+  );
+
   // Button Text
   static const TextStyle button = TextStyle(
     fontSize: 16,
@@ -50,6 +56,7 @@ class AppTextStyles {
     fontSize: 16,
     color: AppColors.textHint,
   );
+
   static const TextStyle caption = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.normal,

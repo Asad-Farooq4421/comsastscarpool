@@ -33,10 +33,13 @@ dependencies:
   firebase_core: ^3.13.0
   firebase_auth: ^5.5.0
   firebase_database: ^11.3.5
+  google_maps_flutter: ^2.13.0
+  geocoding: ^3.0.0
+  firebase_analytics: ^11.6.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-
+  fl_chart: ^0.70.2
 
 
   # UI Utilities - For better looking UI
@@ -53,19 +56,9 @@ dependencies:
   # For maps (OpenStreetMap - FREE, no API key needed for 40% demo)
   flutter_map: ^6.1.2
   latlong2: ^0.9.0
-  # Google Maps (add these)
-  google_maps_flutter_web: ^0.5.4+1
-  google_maps_flutter: ^2.5.0
-
-  geocoding: ^2.1.1        # Convert coordinates to addresses
-  flutter_polyline_points: ^2.1.0  # Draw routes
-  google_places_flutter: ^2.0.0    # Location autocomplete
 
   # For location
   geolocator: ^10.1.0
-  geolocator_web: ^2.0.0
-
-  http: ^1.1.0  # For API calls
 
   # For state management (simple for now, can upgrade later)
   provider: ^6.1.1
