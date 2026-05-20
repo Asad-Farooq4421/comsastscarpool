@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../models/ride_model.dart';
 import '../../constants/colors.dart';
 import '../../constants/text_styles.dart';
@@ -23,6 +24,11 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   String? _requestStatus;
   bool _isLoading = true;
 
+  // Google Maps
+  GoogleMapController? _mapController;
+  Set<Marker> _markers = {};
+  LatLng? _pickupLatLng;
+
   final RideService _rideService = RideService();
   final UserService _userService = UserService();
   final ChatService _chatService = ChatService();
@@ -35,7 +41,45 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     super.initState();
     _loadCurrentUser();
     _loadRideData();
+    _loadCoordinates();
     _startAutoRefresh();
+  }
+
+  Future<void> _loadCoordinates() async {
+    // Get pickup location coordinates
+    if (widget.ride.pickupLatitude != null && widget.ride.pickupLongitude != null) {
+      setState(() {
+        _pickupLatLng = LatLng(
+          widget.ride.pickupLatitude!,
+          widget.ride.pickupLongitude!,
+        );
+      });
+      _addPickupMarker();
+    }
+  }
+
+  void _addPickupMarker() {
+    if (_pickupLatLng == null) return;
+
+    setState(() {
+      _markers = {
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: _pickupLatLng!,
+          infoWindow: InfoWindow(
+            title: 'Pickup Location',
+            snippet: widget.ride.pickupAddress ?? widget.ride.from,
+          ),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueGreen,
+          ),
+        ),
+      };
+    });
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
   }
 
   Future<void> _loadCurrentUser() async {
@@ -64,7 +108,6 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     }
   }
 
-  // Fixed: Use a simple loop instead of firstWhere with orElse
   String? _getMyRequestStatus(Ride ride) {
     if (_currentUserId == null) return null;
 
@@ -87,6 +130,7 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _mapController?.dispose();
     super.dispose();
   }
 
@@ -126,7 +170,6 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
     });
 
     try {
-      // Remove user from passengers list
       final updatedPassengers = _currentRide!.passengers
           .where((p) => p.userId != _currentUserId)
           .toList();
@@ -285,41 +328,57 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text("Ride Details")),
+      appBar: AppBar(
+        title: const Text("Ride Details"),
+      ),
       body: _isLoading && _currentRide == null
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          _header(ride),
-          Expanded(child: _details(context, ride)),
-        ],
+          : SingleChildScrollView(
+        child: Column(
+          children: [
+            _mapSection(),
+            _details(context, ride),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _header(Ride ride) {
-    return Container(
-      height: 180,
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [Color(0xFF90A4AE), Color(0xFF66BB6A)]),
-      ),
-      child: Stack(
-        children: [
-          const Center(child: Icon(Icons.location_on, size: 40, color: Colors.blue)),
-          Positioned(
-            top: 12,
-            right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green,
-                borderRadius: BorderRadius.circular(20),
+  Widget _mapSection() {
+    if (_pickupLatLng == null) {
+      return Container(
+        height: 200,
+        width: double.infinity,
+        color: Colors.grey.shade200,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.map, size: 40, color: Colors.grey),
+              SizedBox(height: 8),
+              Text(
+                'Pickup location not available',
+                style: TextStyle(color: Colors.grey),
               ),
-              child: Text(ride.time, style: const TextStyle(color: Colors.white)),
-            ),
+            ],
           ),
-        ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 220,
+      width: double.infinity,
+      child: GoogleMap(
+        onMapCreated: _onMapCreated,
+        initialCameraPosition: CameraPosition(
+          target: _pickupLatLng!,
+          zoom: 15,
+        ),
+        markers: _markers,
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        zoomControlsEnabled: true,
       ),
     );
   }
@@ -346,8 +405,9 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
             const SizedBox(height: 20),
             _statusWidget(_requestStatus!),
           ],
-          const Spacer(),
+          const SizedBox(height: 20),
           _button(context, ride, isRequested, isAccepted),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -372,8 +432,8 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _locationTile("From", ride.from),
-                _locationTile("To", ride.destination),
+                _locationTile("From", ride.pickupAddress ?? ride.from),
+                _locationTile("To", ride.dropoffAddress ?? ride.destination),
               ],
             ),
           ),
@@ -405,11 +465,21 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
             ],
           ),
         ),
-        Row(
-          children: [
-            const SizedBox(width: 4),
-            Text("Rs. ${ride.price}/seat", style: AppTextStyles.bodyMedium.copyWith(color: AppColors.secondary)),
-          ],
+        Expanded(
+          child: Row(
+            children: [
+              Icon(Icons.access_time, size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Text(ride.time, style: AppTextStyles.bodyMedium),
+            ],
+          ),
+        ),
+        Text(
+          "Rs. ${ride.price}/seat",
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.secondary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ],
     );
@@ -453,7 +523,21 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
                 children: [
                   Text(ride.driverName, style: AppTextStyles.bodyLarge),
                   const SizedBox(height: 4),
-                  Text("${ride.availableSeats} seats available", style: AppTextStyles.caption),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, size: 14, color: Colors.amber),
+                      const SizedBox(width: 4),
+                      Text(
+                        ride.driverRating.toString(),
+                        style: AppTextStyles.caption,
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        "${ride.availableSeats} seats available",
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -493,9 +577,17 @@ class _RideDetailsScreenState extends State<RideDetailsScreen> {
   }
 
   Widget _button(BuildContext context, Ride ride, bool isRequested, bool isAccepted) {
-    // Don't show button if already accepted
     if (isAccepted) {
-      return Container();
+      return ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          minimumSize: const Size(double.infinity, 50),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onPressed: _openChat,
+        icon: const Icon(Icons.chat, color: Colors.white),
+        label: Text("Chat with Driver", style: AppTextStyles.button),
+      );
     }
 
     return ElevatedButton(
