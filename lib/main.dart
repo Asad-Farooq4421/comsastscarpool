@@ -43,10 +43,10 @@ import 'package:comsastscarpool/services/google_place_service.dart';
     );
 
     // Initialize Google Places Service
-    GooglePlacesService.initialize('AIzaSyBHMz2ya8SWcRLceJBGGSItVZ_GHzl6elI');
+    GooglePlacesService.initialize('API');
     print('Google Places Service initialized with API key');
 
-    GeminiService().initialize('AIzaSyD_4Cpl0eybDVvijS544lJwfc0IUZv3q6A');
+    GeminiService().initialize('API');
     // Realtime Database Persistence (NOT supported on Web)
     if (!kIsWeb) {
       FirebaseDatabase.instance.setPersistenceEnabled(true);
